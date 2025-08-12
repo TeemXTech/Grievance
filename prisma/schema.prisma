@@ -1,0 +1,161 @@
+// Prisma schema for Grievance Management System
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  OFFICER
+  PUBLIC
+  MINISTER
+  PA
+  FIELD_OFFICER
+}
+
+enum GrievanceStatus {
+  PENDING
+  ASSIGNED
+  IN_PROGRESS
+  UNDER_REVIEW
+  RESOLVED
+  CLOSED
+  REJECTED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(PUBLIC)
+  phone        String?  @db.VarChar(32)
+  status       String?  @default("active")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  assignedGrievances Grievance[] @relation("AssignedToUser")
+  statusUpdates     GrievanceStatusUpdate[]
+  auditLogs         AuditLog[]
+  notifications     Notification[]
+}
+
+model Category {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  color       String? // optional UI color
+  description String?
+  isActive    Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  grievances Grievance[]
+}
+
+model Grievance {
+  id                String          @id @default(cuid())
+  referenceNumber   String          @unique @default("TEMP-GRV-0000") // Format: GRV-YYYY-XXXX
+  title             String
+  description       String
+  status            GrievanceStatus @default(PENDING)
+  priority          Priority        @default(MEDIUM)
+  
+  // Requester Information
+  requesterName     String          @default("Unknown Requester")
+  requesterPhone    String          @db.VarChar(32) @default("+910000000000")
+  requesterEmail    String?
+  requesterAddress  String?
+  
+  // Location Information
+  village           String?
+  mandal            String?
+  district          String?
+  state             String?         @default("Telangana")
+  pincode           String?
+  latitude          Float?
+  longitude         Float?
+  
+  // Additional Details
+  estimatedCost     Float?
+  expectedResolutionDate DateTime?
+  actualResolutionDate   DateTime?
+  remarks           String?
+  
+  // Timestamps
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  
+  // Relations
+  category          Category?       @relation(fields: [categoryId], references: [id])
+  categoryId        String?
+  
+  assignedTo        User?           @relation("AssignedToUser", fields: [assignedToId], references: [id])
+  assignedToId      String?
+  
+  attachments       Attachment[]
+  statusUpdates     GrievanceStatusUpdate[]
+}
+
+model Attachment {
+  id          String    @id @default(cuid())
+  fileName    String
+  originalName String
+  url         String
+  mimeType    String
+  fileSize    Int       // Size in bytes
+  grievance   Grievance @relation(fields: [grievanceId], references: [id], onDelete: Cascade)
+  grievanceId String
+  uploadedBy  String?
+  createdAt   DateTime  @default(now())
+}
+
+model GrievanceStatusUpdate {
+  id          String          @id @default(cuid())
+  grievance   Grievance       @relation(fields: [grievanceId], references: [id], onDelete: Cascade)
+  grievanceId String
+  user        User            @relation(fields: [userId], references: [id])
+  userId      String
+  oldStatus   GrievanceStatus?
+  newStatus   GrievanceStatus
+  remarks     String?
+  createdAt   DateTime        @default(now())
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  action      String   // CREATE, UPDATE, DELETE, STATUS_CHANGE, ASSIGNMENT
+  entityType  String   // GRIEVANCE, USER, CATEGORY, etc.
+  entityId    String
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  oldValues   Json?    // Previous state
+  newValues   Json?    // New state
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+}
+
+model Notification {
+  id          String    @id @default(cuid())
+  type        String    // GRIEVANCE_CREATED, STATUS_CHANGED, etc.
+  title       String
+  message     String
+  isRead      Boolean   @default(false)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  data        Json?     // Additional context data
+  createdAt   DateTime  @default(now())
+}
+

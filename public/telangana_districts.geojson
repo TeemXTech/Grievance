@@ -1,0 +1,185 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "district": "Hyderabad",
+        "constituency": "Hyderabad",
+        "total_grievances": 1247,
+        "pending": 156,
+        "resolved": 892,
+        "in_progress": 89,
+        "total_cost": 15000000
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [78.3, 17.2], [78.5, 17.2], [78.5, 17.5], [78.3, 17.5], [78.3, 17.2]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "district": "Warangal",
+        "constituency": "Warangal",
+        "total_grievances": 856,
+        "pending": 98,
+        "resolved": 623,
+        "in_progress": 67,
+        "total_cost": 9800000
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [79.8, 17.8], [80.0, 17.8], [80.0, 18.1], [79.8, 18.1], [79.8, 17.8]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "district": "Karimnagar",
+        "constituency": "Karimnagar",
+        "total_grievances": 723,
+        "pending": 87,
+        "resolved": 534,
+        "in_progress": 45,
+        "total_cost": 8200000
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [79.0, 18.3], [79.2, 18.3], [79.2, 18.6], [79.0, 18.6], [79.0, 18.3]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "district": "Nizamabad",
+        "constituency": "Nizamabad",
+        "total_grievances": 654,
+        "pending": 76,
+        "resolved": 478,
+        "in_progress": 52,
+        "total_cost": 7200000
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [78.0, 18.6], [78.2, 18.6], [78.2, 18.9], [78.0, 18.9], [78.0, 18.6]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "district": "Adilabad",
+        "constituency": "Adilabad",
+        "total_grievances": 589,
+        "pending": 65,
+        "resolved": 423,
+        "in_progress": 38,
+        "total_cost": 6500000
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [78.5, 19.0], [78.7, 19.0], [78.7, 19.3], [78.5, 19.3], [78.5, 19.0]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "district": "Medak",
+        "constituency": "Medak",
+        "total_grievances": 567,
+        "pending": 54,
+        "resolved": 412,
+        "in_progress": 41,
+        "total_cost": 5800000
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [77.8, 17.8], [78.0, 17.8], [78.0, 18.1], [77.8, 18.1], [77.8, 17.8]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "district": "Nalgonda",
+        "constituency": "Nalgonda",
+        "total_grievances": 634,
+        "pending": 72,
+        "resolved": 456,
+        "in_progress": 48,
+        "total_cost": 6900000
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [79.2, 16.8], [79.4, 16.8], [79.4, 17.1], [79.2, 17.1], [79.2, 16.8]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "district": "Khammam",
+        "constituency": "Khammam",
+        "total_grievances": 478,
+        "pending": 43,
+        "resolved": 345,
+        "in_progress": 32,
+        "total_cost": 5200000
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [80.2, 17.0], [80.4, 17.0], [80.4, 17.3], [80.2, 17.3], [80.2, 17.0]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "district": "Mahabubnagar",
+        "constituency": "Mahabubnagar",
+        "total_grievances": 445,
+        "pending": 38,
+        "resolved": 323,
+        "in_progress": 29,
+        "total_cost": 4800000
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [77.5, 16.5], [77.7, 16.5], [77.7, 16.8], [77.5, 16.8], [77.5, 16.5]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "district": "Rangareddy",
+        "constituency": "Rangareddy",
+        "total_grievances": 892,
+        "pending": 112,
+        "resolved": 634,
+        "in_progress": 78,
+        "total_cost": 10500000
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [78.0, 17.0], [78.2, 17.0], [78.2, 17.3], [78.0, 17.3], [78.0, 17.0]
+        ]]
+      }
+    }
+  ]
+}

@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telangana Grievance Map</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" 
+          crossorigin=""/>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        .custom-tooltip {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            padding: 0;
+            font-family: inherit;
+        }
+        
+        .custom-tooltip::before {
+            border-top-color: #e5e7eb;
+        }
+        
+        .leaflet-container {
+            font-family: inherit;
+        }
+        
+        .leaflet-control-zoom {
+            border: none !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+        }
+        
+        .leaflet-control-zoom a {
+            background: white !important;
+            color: #374151 !important;
+            border: 1px solid #e5e7eb !important;
+        }
+        
+        .leaflet-control-zoom a:hover {
+            background: #f9fafb !important;
+        }
+        
+        .info.legend {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            font-family: inherit;
+        }
+        
+        .info.legend h4 {
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        
+        .info.legend .space-y-1 > div {
+            margin-bottom: 4px;
+        }
+        
+        .info.legend .flex {
+            display: flex;
+            align-items: center;
+        }
+        
+        .info.legend .ml-2 {
+            margin-left: 8px;
+        }
+        
+        .info.legend .text-sm {
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">Telangana Grievance Management System</h1>
+                        <p class="text-gray-600">Interactive District-wise Grievance Visualization</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"></path>
+                            </svg>
+                            Real-time Data
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <!-- Map Container -->
+                <div class="lg:col-span-3">
+                    <div class="bg-white rounded-lg shadow-sm border">
+                        <div class="p-4 border-b">
+                            <h2 class="text-lg font-semibold text-gray-900 flex items-center">
+                                <svg class="w-5 h-5 mr-2 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"></path>
+                                </svg>
+                                District-wise Grievance Distribution
+                            </h2>
+                        </div>
+                        <div id="map" class="w-full h-[600px] relative"></div>
+                    </div>
+                </div>
+
+                <!-- Sidebar -->
+                <div class="lg:col-span-1 space-y-6">
+                    <!-- Selected District Info -->
+                    <div id="district-info" class="bg-white rounded-lg shadow-sm border p-4 hidden">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Selected District</h3>
+                        <div id="district-details" class="space-y-4">
+                            <!-- District details will be populated here -->
+                        </div>
+                    </div>
+
+                    <!-- Map Controls -->
+                    <div class="bg-white rounded-lg shadow-sm border p-4">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Map Controls</h3>
+                        <div class="space-y-3">
+                            <div class="text-sm text-gray-600">
+                                <p class="mb-2">• Hover over districts to see details</p>
+                                <p class="mb-2">• Click on districts to select</p>
+                                <p class="mb-2">• Use mouse wheel to zoom</p>
+                                <p>• Drag to pan around the map</p>
+                            </div>
+                            <div class="pt-2 border-t">
+                                <button id="reset-view" class="w-full px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                    Reset View
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Stats -->
+                    <div class="bg-white rounded-lg shadow-sm border p-4">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Quick Stats</h3>
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">Total Districts</span>
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">10</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">Active Grievances</span>
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">1,247</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">Resolution Rate</span>
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">71.5%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" 
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" 
+            crossorigin=""></script>
+
+    <script>
+        // Sample GeoJSON data for Telangana districts
+        const telanganaDistricts = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "district": "Hyderabad",
+                        "constituency": "Hyderabad",
+                        "total_grievances": 1247,
+                        "pending": 156,
+                        "resolved": 892,
+                        "in_progress": 89,
+                        "total_cost": 15000000
+                    },
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [[
+                            [78.3, 17.2], [78.5, 17.2], [78.5, 17.5], [78.3, 17.5], [78.3, 17.2]
+                        ]]
+                    }
+                },
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "district": "Warangal",
+                        "constituency": "Warangal",
+                        "total_grievances": 856,
+                        "pending": 98,
+                        "resolved": 623,
+                        "in_progress": 67,
+                        "total_cost": 9800000
+                    },
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [[
+                            [79.8, 17.8], [80.0, 17.8], [80.0, 18.1], [79.8, 18.1], [79.8, 17.8]
+                        ]]
+                    }
+                },
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "district": "Karimnagar",
+                        "constituency": "Karimnagar",
+                        "total_grievances": 723,
+                        "pending": 87,
+                        "resolved": 534,
+                        "in_progress": 45,
+                        "total_cost": 8200000
+                    },
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [[
+                            [79.0, 18.3], [79.2, 18.3], [79.2, 18.6], [79.0, 18.6], [79.0, 18.3]
+                        ]]
+                    }
+                },
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "district": "Nizamabad",
+                        "constituency": "Nizamabad",
+                        "total_grievances": 654,
+                        "pending": 76,
+                        "resolved": 478,
+                        "in_progress": 52,
+                        "total_cost": 7200000
+                    },
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [[
+                            [78.0, 18.6], [78.2, 18.6], [78.2, 18.9], [78.0, 18.9], [78.0, 18.6]
+                        ]]
+                    }
+                },
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "district": "Adilabad",
+                        "constituency": "Adilabad",
+                        "total_grievances": 589,
+                        "pending": 65,
+                        "resolved": 423,
+                        "in_progress": 38,
+                        "total_cost": 6500000
+                    },
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [[
+                            [78.5, 19.0], [78.7, 19.0], [78.7, 19.3], [78.5, 19.3], [78.5, 19.0]
+                        ]]
+                    }
+                },
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "district": "Medak",
+                        "constituency": "Medak",
+                        "total_grievances": 567,
+                        "pending": 54,
+                        "resolved": 412,
+                        "in_progress": 41,
+                        "total_cost": 5800000
+                    },
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [[
+                            [77.8, 17.8], [78.0, 17.8], [78.0, 18.1], [77.8, 18.1], [77.8, 17.8]
+                        ]]
+                    }
+                },
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "district": "Nalgonda",
+                        "constituency": "Nalgonda",
+                        "total_grievances": 634,
+                        "pending": 72,
+                        "resolved": 456,
+                        "in_progress": 48,
+                        "total_cost": 6900000
+                    },
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [[
+                            [79.2, 16.8], [79.4, 16.8], [79.4, 17.1], [79.2, 17.1], [79.2, 16.8]
+                        ]]
+                    }
+                },
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "district": "Khammam",
+                        "constituency": "Khammam",
+                        "total_grievances": 478,
+                        "pending": 43,
+                        "resolved": 345,
+                        "in_progress": 32,
+                        "total_cost": 5200000
+                    },
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [[
+                            [80.2, 17.0], [80.4, 17.0], [80.4, 17.3], [80.2, 17.3], [80.2, 17.0]
+                        ]]
+                    }
+                },
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "district": "Mahabubnagar",
+                        "constituency": "Mahabubnagar",
+                        "total_grievances": 445,
+                        "pending": 38,
+                        "resolved": 323,
+                        "in_progress": 29,
+                        "total_cost": 4800000
+                    },
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [[
+                            [77.5, 16.5], [77.7, 16.5], [77.7, 16.8], [77.5, 16.8], [77.5, 16.5]
+                        ]]
+                    }
+                },
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "district": "Rangareddy",
+                        "constituency": "Rangareddy",
+                        "total_grievances": 892,
+                        "pending": 112,
+                        "resolved": 634,
+                        "in_progress": 78,
+                        "total_cost": 10500000
+                    },
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [[
+                            [78.0, 17.0], [78.2, 17.0], [78.2, 17.3], [78.0, 17.3], [78.0, 17.0]
+                        ]]
+                    }
+                }
+            ]
+        };
+
+        // Initialize map
+        const map = L.map('map').setView([17.3850, 78.4867], 7);
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Style function for districts
+        function style(feature) {
+            const grievances = feature.properties.total_grievances;
+            const intensity = Math.min(grievances / 1000, 1); // Normalize to 0-1
+            
+            return {
+                fillColor: `rgba(59, 130, 246, ${0.3 + intensity * 0.4})`, // Blue with varying opacity
+                weight: 2,
+                opacity: 1,
+                color: '#3b82f6',
+                fillOpacity: 0.6
+            };
+        }
+
+        // Create GeoJSON layer
+        const geojsonLayer = L.geoJSON(telanganaDistricts, {
+            style: style,
+            onEachFeature: function(feature, layer) {
+                const props = feature.properties;
+                
+                // Tooltip on hover
+                layer.bindTooltip(`
+                    <div class="p-2">
+                        <h3 class="font-bold text-lg">${props.district}</h3>
+                        <p class="text-sm text-gray-600">Constituency: ${props.constituency}</p>
+                        <div class="mt-2 space-y-1">
+                            <div class="flex justify-between">
+                                <span>Total Grievances:</span>
+                                <span class="font-semibold">${props.total_grievances}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Pending:</span>
+                                <span class="text-orange-600">${props.pending}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Resolved:</span>
+                                <span class="text-green-600">${props.resolved}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>In Progress:</span>
+                                <span class="text-blue-600">${props.in_progress}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Total Cost:</span>
+                                <span class="font-semibold">₹${(props.total_cost / 1000000).toFixed(1)}M</span>
+                            </div>
+                        </div>
+                    </div>
+                `, {
+                    className: 'custom-tooltip',
+                    sticky: true
+                });
+
+                // Click handler
+                layer.on('click', function() {
+                    showDistrictInfo(props);
+                });
+
+                // Hover effects
+                layer.on('mouseover', function() {
+                    this.setStyle({
+                        fillOpacity: 0.8,
+                        weight: 3
+                    });
+                });
+
+                layer.on('mouseout', function() {
+                    this.setStyle(style(feature));
+                });
+            }
+        }).addTo(map);
+
+        // Add legend
+        const legend = L.control({ position: 'bottomright' });
+        legend.onAdd = function() {
+            const div = L.DomUtil.create('div', 'info legend');
+            div.innerHTML = `
+                <h4 class="font-bold mb-2">Grievance Density</h4>
+                <div class="space-y-1">
+                    <div class="flex items-center">
+                        <div style="width: 20px; height: 20px; background: rgba(59, 130, 246, 0.3); border: 2px solid #3b82f6;"></div>
+                        <span class="ml-2 text-sm">Low (0-500)</span>
+                    </div>
+                    <div class="flex items-center">
+                        <div style="width: 20px; height: 20px; background: rgba(59, 130, 246, 0.5); border: 2px solid #3b82f6;"></div>
+                        <span class="ml-2 text-sm">Medium (500-1000)</span>
+                    </div>
+                    <div class="flex items-center">
+                        <div style="width: 20px; height: 20px; background: rgba(59, 130, 246, 0.7); border: 2px solid #3b82f6;"></div>
+                        <span class="ml-2 text-sm">High (1000+)</span>
+                    </div>
+                </div>
+            `;
+            return div;
+        };
+        legend.addTo(map);
+
+        // Show district info in sidebar
+        function showDistrictInfo(district) {
+            const districtInfo = document.getElementById('district-info');
+            const districtDetails = document.getElementById('district-details');
+            
+            districtDetails.innerHTML = `
+                <div>
+                    <h3 class="font-semibold text-lg text-blue-600">${district.district}</h3>
+                    <p class="text-sm text-gray-600">Constituency: ${district.constituency}</p>
+                </div>
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600">Total Grievances</span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 font-semibold">${district.total_grievances}</span>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="flex items-center">
+                                <div class="w-3 h-3 bg-orange-500 rounded-full mr-2"></div>
+                                Pending
+                            </span>
+                            <span class="font-semibold text-orange-600">${district.pending}</span>
+                        </div>
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="flex items-center">
+                                <div class="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+                                In Progress
+                            </span>
+                            <span class="font-semibold text-blue-600">${district.in_progress}</span>
+                        </div>
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="flex items-center">
+                                <div class="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                                Resolved
+                            </span>
+                            <span class="font-semibold text-green-600">${district.resolved}</span>
+                        </div>
+                    </div>
+                    <div class="pt-2 border-t">
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-gray-600">Total Cost</span>
+                            <span class="font-semibold text-green-700">₹${(district.total_cost / 1000000).toFixed(1)}M</span>
+                        </div>
+                    </div>
+                    <button onclick="alert('Navigating to ${district.district} analytics page...')" class="w-full px-3 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                        </svg>
+                        View Analytics
+                    </button>
+                </div>
+            `;
+            
+            districtInfo.classList.remove('hidden');
+        }
+
+        // Reset view button
+        document.getElementById('reset-view').addEventListener('click', function() {
+            map.setView([17.3850, 78.4867], 7);
+            document.getElementById('district-info').classList.add('hidden');
+        });
+
+        // Demo click handler
+        function handleDistrictClick(district) {
+            alert(`Selected District: ${district.district}\nTotal Grievances: ${district.total_grievances}\nPending: ${district.pending}\nResolved: ${district.resolved}`);
+        }
+    </script>
+</body>
+</html>

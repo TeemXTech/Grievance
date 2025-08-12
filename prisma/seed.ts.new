@@ -1,0 +1,209 @@
+import { PrismaClient, GrievanceStatus, Role, Priority } from "@prisma/client"
+import bcrypt from "bcryptjs"
+
+const prisma = new PrismaClient()
+
+// Generate reference number
+function generateReferenceNumber(year: number, sequence: number): string {
+  return `GRV-${year}-${sequence.toString().padStart(4, '0')}`
+}
+
+async function main() {
+  // Clear existing data
+  await prisma.grievanceStatusUpdate.deleteMany()
+  await prisma.grievance.deleteMany()
+  await prisma.category.deleteMany()
+  await prisma.user.deleteMany()
+
+  // Create categories
+  const categories = [
+    { name: "Infrastructure", color: "#0ea5e9", description: "Roads, bridges, public buildings" },
+    { name: "Utilities", color: "#22c55e", description: "Water, electricity, sanitation" },
+    { name: "Healthcare", color: "#a855f7", description: "Hospitals, clinics, medical services" },
+    { name: "Education", color: "#f59e0b", description: "Schools, colleges, educational facilities" },
+    { name: "Transportation", color: "#ef4444", description: "Public transport, traffic management" },
+    { name: "Agriculture", color: "#16a34a", description: "Farming support, irrigation" },
+    { name: "Others", color: "#64748b", description: "Miscellaneous issues" },
+  ]
+
+  for (const category of categories) {
+    await prisma.category.create({
+      data: {
+        name: category.name,
+        color: category.color,
+        description: category.description,
+        isActive: true,
+      }
+    })
+  }
+
+  // Create users with enhanced roles
+  const passwordHash = await bcrypt.hash("password123", 10)
+  const [admin, minister, pa, fieldOfficer, publicUser] = await Promise.all([
+    prisma.user.create({
+      data: {
+        name: "Admin User",
+        email: "admin@example.com",
+        passwordHash,
+        role: Role.ADMIN,
+        phone: "9876543210",
+      },
+    }),
+    prisma.user.create({
+      data: {
+        name: "Minister of State",
+        email: "minister@example.com",
+        passwordHash,
+        role: Role.MINISTER,
+        phone: "9876543211",
+      },
+    }),
+    prisma.user.create({
+      data: {
+        name: "Personal Assistant",
+        email: "pa@example.com",
+        passwordHash,
+        role: Role.PA,
+        phone: "9876543212",
+      },
+    }),
+    prisma.user.create({
+      data: {
+        name: "Field Officer",
+        email: "field@example.com",
+        passwordHash,
+        role: Role.FIELD_OFFICER,
+        phone: "9876543213",
+      },
+    }),
+    prisma.user.create({
+      data: {
+        name: "Public User",
+        email: "public@example.com",
+        passwordHash,
+        role: Role.PUBLIC,
+        phone: "9876543214",
+      },
+    }),
+  ])
+
+  // Get categories for reference
+  const infra = await prisma.category.findUnique({ where: { name: "Infrastructure" } })
+  const utils = await prisma.category.findUnique({ where: { name: "Utilities" } })
+  const health = await prisma.category.findUnique({ where: { name: "Healthcare" } })
+  const transport = await prisma.category.findUnique({ where: { name: "Transportation" } })
+
+  const currentYear = new Date().getFullYear()
+
+  // Sample grievances with enhanced data
+  const grievances = [
+    {
+      title: "Road Repair on Main Street",
+      description: "Large potholes causing traffic issues and safety concerns for motorists. The road condition has deteriorated significantly over the past month.",
+      status: GrievanceStatus.PENDING,
+      priority: Priority.HIGH,
+      requesterName: "Rajesh Kumar",
+      requesterPhone: "9876543210",
+      requesterEmail: "rajesh@example.com",
+      requesterAddress: "123 Main Street, Hyderabad",
+      district: "Hyderabad",
+      constituency: "Secunderabad",
+      village: "Secunderabad",
+      mandal: "Secunderabad",
+      state: "Telangana",
+      pincode: "500003",
+      latitude: 17.3850,
+      longitude: 78.4867,
+      estimatedCost: 50000,
+      expectedResolutionDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+      category: { connect: { id: infra?.id } },
+      submittedBy: { connect: { id: publicUser.id } },
+      assignedTo: { connect: { id: fieldOfficer.id } },
+      referenceNumber: generateReferenceNumber(currentYear, 1),
+    },
+    {
+      title: "Water Supply Disruption",
+      description: "No water supply for 3 days in our area. This is affecting daily activities and hygiene. Urgent attention required.",
+      status: GrievanceStatus.IN_PROGRESS,
+      priority: Priority.URGENT,
+      requesterName: "Priya Sharma",
+      requesterPhone: "9876543211",
+      requesterEmail: "priya@example.com",
+      requesterAddress: "456 Sector 12, Hyderabad",
+      district: "Hyderabad",
+      constituency: "Kukatpally",
+      village: "Kukatpally",
+      mandal: "Kukatpally",
+      state: "Telangana",
+      pincode: "500072",
+      latitude: 17.4849,
+      longitude: 78.3958,
+      estimatedCost: 25000,
+      expectedResolutionDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+      category: { connect: { id: utils?.id } },
+      submittedBy: { connect: { id: publicUser.id } },
+      assignedTo: { connect: { id: fieldOfficer.id } },
+      referenceNumber: generateReferenceNumber(currentYear, 2),
+    },
+    {
+      title: "Hospital Equipment Maintenance",
+      description: "Medical equipment in the local hospital needs maintenance. Some machines are not functioning properly.",
+      status: GrievanceStatus.PENDING,
+      priority: Priority.HIGH,
+      requesterName: "Dr. Amit Patel",
+      requesterPhone: "9876543215",
+      requesterEmail: "amit.patel@hospital.com",
+      requesterAddress: "Government Hospital, Warangal",
+      district: "Warangal Urban",
+      constituency: "Warangal",
+      village: "Warangal",
+      mandal: "Warangal",
+      state: "Telangana",
+      pincode: "506002",
+      latitude: 17.9689,
+      longitude: 79.5941,
+      estimatedCost: 150000,
+      expectedResolutionDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days from now
+      category: { connect: { id: health?.id } },
+      submittedBy: { connect: { id: publicUser.id } },
+      assignedTo: { connect: { id: pa.id } },
+      referenceNumber: generateReferenceNumber(currentYear, 3),
+    },
+  ]
+
+  for (const grievance of grievances) {
+    await prisma.grievance.create({
+      data: grievance
+    })
+  }
+
+  // Create some status updates for tracking
+  const existingGrievances = await prisma.grievance.findMany({
+    where: { status: { not: GrievanceStatus.PENDING } }
+  })
+
+  for (const grievance of existingGrievances) {
+    await prisma.grievanceStatusUpdate.create({
+      data: {
+        grievanceId: grievance.id,
+        userId: admin.id,
+        oldStatus: GrievanceStatus.PENDING,
+        newStatus: grievance.status,
+        remarks: 'Initial status update during seeding',
+      }
+    })
+  }
+
+  console.log(`Created ${categories.length} categories`)
+  console.log(`Created ${grievances.length} grievances`)
+  console.log(`Created ${existingGrievances.length} status updates`)
+}
+
+main()
+  .catch((e) => {
+    console.error(e)
+    process.exit(1)
+  })
+  .finally(async () => {
+    await prisma.$disconnect()
+  })
