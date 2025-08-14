@@ -46,11 +46,46 @@ export default function BackOfficerDashboard() {
           </TabsList>
 
           <TabsContent value="grievances">
-            <EnhancedGrievanceForm />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Quick Grievance Entry</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <GrievanceCaptureForm />
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle>WhatsApp Messages</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="p-3 border rounded bg-green-50">
+                      <div className="text-sm font-medium">+91 9876543210</div>
+                      <div className="text-sm text-gray-600">Road problem in our village, please help</div>
+                      <div className="flex gap-2 mt-2">
+                        <Button size="sm">Convert to Grievance</Button>
+                        <Button size="sm" variant="outline">Ignore</Button>
+                      </div>
+                    </div>
+                    <div className="p-3 border rounded bg-blue-50">
+                      <div className="text-sm font-medium">+91 9876543211</div>
+                      <div className="text-sm text-gray-600">Need job recommendation letter</div>
+                      <div className="flex gap-2 mt-2">
+                        <Button size="sm">Convert to Grievance</Button>
+                        <Button size="sm" variant="outline">Ignore</Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="projects">
-            <EnhancedProjectForm />
+            <GovernmentProjectForm />
           </TabsContent>
 
           <TabsContent value="reports">

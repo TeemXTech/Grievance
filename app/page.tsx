@@ -24,7 +24,7 @@ export default function HomePage() {
               grievances with transparency and efficiency.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/auth/login">
+              <Link href="/dashboard">
                 <Button size="lg" className="bg-white text-blue-600 hover:bg-gray-100">
                   Access Dashboard
                   <ArrowRight className="ml-2 h-5 w-5" />
@@ -61,38 +61,86 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Role-based Access Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <GovernmentCard
-            title="Minister Dashboard"
-            description="Executive overview and decision making"
-            icon={<Users className="h-8 w-8" />}
-            href="/minister/dashboard"
-            className="border-red-200 hover:border-red-300"
-          />
+        {/* System Overview */}
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">Telangana Minister Grievance System</h2>
+          <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+            A comprehensive digital platform for efficient management of citizen grievances and government projects. 
+            Designed for internal use by ministerial staff, PA officers, field officers, and administrators.
+          </p>
+        </div>
 
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
           <GovernmentCard
-            title="PA Dashboard"
-            description="Personal Assistant workflow management"
+            title="Grievance Management"
+            description="Comprehensive intake, assignment, and tracking system"
             icon={<FileText className="h-8 w-8" />}
-            href="/pa/dashboard"
+            href="/dashboard/grievances"
             className="border-blue-200 hover:border-blue-300"
           />
 
           <GovernmentCard
-            title="Field Officer"
-            description="Ground-level request handling"
-            icon={<MessageSquare className="h-8 w-8" />}
-            href="/field/dashboard"
+            title="Project Tracking"
+            description="Monitor government projects and milestones"
+            icon={<BarChart3 className="h-8 w-8" />}
+            href="/dashboard"
             className="border-green-200 hover:border-green-300"
           />
 
           <GovernmentCard
-            title="Analytics"
-            description="Performance metrics and insights"
-            icon={<BarChart3 className="h-8 w-8" />}
-            href="/analytics"
+            title="WhatsApp Integration"
+            description="Auto-capture and process citizen messages"
+            icon={<MessageSquare className="h-8 w-8" />}
+            href="/dashboard"
             className="border-purple-200 hover:border-purple-300"
+          />
+        </div>
+
+        {/* Staff Access */}
+        <div className="text-center mb-8">
+          <h3 className="text-2xl font-bold text-gray-900 mb-2">Staff Access</h3>
+          <p className="text-gray-600">Direct access to different dashboards</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <GovernmentCard
+            title="Minister"
+            description="Executive dashboard"
+            icon={<Users className="h-6 w-6" />}
+            href="/minister/dashboard"
+            className="border-red-200 hover:border-red-300 text-sm"
+          />
+
+          <GovernmentCard
+            title="PA Officer"
+            description="Assistant workflow"
+            icon={<FileText className="h-6 w-6" />}
+            href="/pa/dashboard"
+            className="border-blue-200 hover:border-blue-300 text-sm"
+          />
+
+          <GovernmentCard
+            title="Back Officer"
+            description="Backend operations"
+            icon={<Shield className="h-6 w-6" />}
+            href="/back-officer/dashboard"
+            className="border-yellow-200 hover:border-yellow-300 text-sm"
+          />
+
+          <GovernmentCard
+            title="Field Officer"
+            description="Ground operations"
+            icon={<MessageSquare className="h-6 w-6" />}
+            href="/field/dashboard"
+            className="border-green-200 hover:border-green-300 text-sm"
+          />
+
+          <GovernmentCard
+            title="Admin"
+            description="System administration"
+            icon={<BarChart3 className="h-6 w-6" />}
+            href="/admin/dashboard"
+            className="border-purple-200 hover:border-purple-300 text-sm"
           />
         </div>
       </div>

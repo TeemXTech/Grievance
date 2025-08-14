@@ -1,5 +1,3 @@
-// Prisma schema for Grievance Management System
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,6 +5,304 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model User {
+  id                   String                  @id @default(cuid())
+  name                 String
+  email                String                  @unique
+  passwordHash         String
+  role                 Role                    @default(PUBLIC)
+  phone                String?                 @db.VarChar(32)
+  status               String?                 @default("active")
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+  auditLogs            AuditLog[]
+  calendarEvents       CalendarEvent[]
+  assignedProjects     GovernmentProject[]     @relation("ProjectAssignedTo")
+  governmentProjects   GovernmentProject[]
+  assignedGrievances   Grievance[]             @relation("AssignedToUser")
+  statusUpdates        GrievanceStatusUpdate[]
+  assignedIndividuals  IndividualGrievance[]   @relation("IndividualAssignedTo")
+  individualGrievances IndividualGrievance[]
+  assignedJobs         JobRequest[]            @relation("JobAssignedTo")
+  jobRequests          JobRequest[]
+  notifications        Notification[]
+  assignedPatients     PatientGrievance[]      @relation("PatientAssignedTo")
+  patientGrievances    PatientGrievance[]
+  projectStatusUpdates ProjectStatusUpdate[]
+  assignedTTDs         TTDRequest[]            @relation("TTDAssignedTo")
+  ttdRequests          TTDRequest[]
+}
+
+model Category {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  color       String?
+  description String?
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @default(now()) @updatedAt
+  grievances  Grievance[]
+}
+
+model Grievance {
+  id                     String                  @id @default(cuid())
+  referenceNumber        String                  @unique @default("TEMP-GRV-0000")
+  title                  String
+  description            String
+  status                 GrievanceStatus         @default(PENDING)
+  priority               Priority                @default(MEDIUM)
+  requesterName          String                  @default("Unknown Requester")
+  requesterPhone         String                  @default("+910000000000") @db.VarChar(32)
+  requesterEmail         String?
+  requesterAddress       String?
+  village                String?
+  mandal                 String?
+  district               String?
+  state                  String?                 @default("Telangana")
+  pincode                String?
+  latitude               Float?
+  longitude              Float?
+  grievanceCategory      GrievanceCategory       @default(OTHER)
+  requestOrigin          RequestOrigin           @default(VILLAGE)
+  intakeMethod           IntakeMethod            @default(ONLINE)
+  estimatedCost          Float?
+  expectedResolutionDate DateTime?
+  actualResolutionDate   DateTime?
+  remarks                String?
+  assignedBy             String?
+  assignedAt             DateTime?
+  lastActionDate         DateTime?               @default(now())
+  qrCode                 String?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  categoryId             String?
+  assignedToId           String?
+  attachments            Attachment[]
+  assignedTo             User?                   @relation("AssignedToUser", fields: [assignedToId], references: [id])
+  category               Category?               @relation(fields: [categoryId], references: [id])
+  statusUpdates          GrievanceStatusUpdate[]
+  visitorLogs            VisitorLog[]
+}
+
+model Attachment {
+  id           String    @id @default(cuid())
+  fileName     String
+  originalName String
+  url          String
+  mimeType     String
+  fileSize     Int
+  grievanceId  String
+  uploadedBy   String?
+  createdAt    DateTime  @default(now())
+  grievance    Grievance @relation(fields: [grievanceId], references: [id], onDelete: Cascade)
+}
+
+model GrievanceStatusUpdate {
+  id          String           @id @default(cuid())
+  grievanceId String
+  userId      String
+  oldStatus   GrievanceStatus?
+  newStatus   GrievanceStatus
+  remarks     String?
+  createdAt   DateTime         @default(now())
+  grievance   Grievance        @relation(fields: [grievanceId], references: [id], onDelete: Cascade)
+  user        User             @relation(fields: [userId], references: [id])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  action     String
+  entityType String
+  entityId   String
+  userId     String
+  oldValues  Json?
+  newValues  Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  type      String
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  userId    String
+  data      Json?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model GovernmentProject {
+  id                     String                @id @default(cuid())
+  referenceNumber        String                @unique @default("TEMP-PRJ-0000")
+  projectName            String
+  description            String?
+  ministerName           String
+  status                 ProjectStatus
+  estimatedCost          Float?
+  actualCost             Float?
+  startDate              DateTime?
+  completionDate         DateTime?
+  village                String?
+  mandal                 String?
+  district               String?
+  state                  String                @default("Telangana")
+  beneficiaries          Int?
+  remarks                String?
+  attachments            Json?
+  approvalDate           DateTime?
+  sanctionOrder          String?
+  contractAssignment     String?
+  documents              Json?
+  expectedCompletionDate DateTime?
+  assignedToId           String?
+  assignedBy             String?
+  assignedAt             DateTime?
+  createdBy              String
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  assignedTo             User?                 @relation("ProjectAssignedTo", fields: [assignedToId], references: [id])
+  createdByUser          User                  @relation(fields: [createdBy], references: [id])
+  statusUpdates          ProjectStatusUpdate[]
+  visitorLogs            VisitorLog[]
+}
+
+model PatientGrievance {
+  id               String   @id @default(cuid())
+  referenceNumber  String   @unique @default("TEMP-PAT-0000")
+  patientName      String
+  patientPhone     String
+  village          String?
+  caretakerName    String?
+  caretakerPhone   String?
+  issue            String
+  hospital         String?
+  doctor           String?
+  referredByName   String?
+  referredByNumber String?
+  status           String   @default("NEW")
+  assignedToId     String?
+  qrCode           String?
+  createdBy        String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  assignedTo       User?    @relation("PatientAssignedTo", fields: [assignedToId], references: [id])
+  createdByUser    User     @relation(fields: [createdBy], references: [id])
+}
+
+model IndividualGrievance {
+  id               String   @id @default(cuid())
+  name             String
+  mobileNumber     String
+  village          String?
+  contactName      String?
+  contactNumber    String?
+  office           String?
+  subject          String
+  referredByName   String?
+  referredByNumber String?
+  assignedToId     String?
+  createdBy        String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  assignedTo       User?    @relation("IndividualAssignedTo", fields: [assignedToId], references: [id])
+  createdByUser    User     @relation(fields: [createdBy], references: [id])
+}
+
+model JobRequest {
+  id               String   @id @default(cuid())
+  name             String
+  mobileNumber     String
+  village          String?
+  contactName      String?
+  contactNumber    String?
+  office           String?
+  subject          String
+  referredByName   String?
+  referredByNumber String?
+  assignedToId     String?
+  createdBy        String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  assignedTo       User?    @relation("JobAssignedTo", fields: [assignedToId], references: [id])
+  createdByUser    User     @relation(fields: [createdBy], references: [id])
+}
+
+model TTDRequest {
+  id                String    @id @default(cuid())
+  darshanDate       DateTime
+  darshanType       String
+  accommodationFrom DateTime?
+  accommodationTo   DateTime?
+  guests            Json
+  referenceName     String?
+  referenceNumber   String?
+  referenceVillage  String?
+  referenceMandal   String?
+  assignedToId      String?
+  createdBy         String
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  assignedTo        User?     @relation("TTDAssignedTo", fields: [assignedToId], references: [id])
+  createdByUser     User      @relation(fields: [createdBy], references: [id])
+}
+
+model VisitorLog {
+  id           String             @id @default(cuid())
+  visitorName  String
+  visitorPhone String?
+  visitDate    DateTime           @default(now())
+  purpose      String?
+  grievanceId  String?
+  projectId    String?
+  status       String?
+  notes        String?
+  createdAt    DateTime           @default(now())
+  grievance    Grievance?         @relation(fields: [grievanceId], references: [id])
+  project      GovernmentProject? @relation(fields: [projectId], references: [id])
+}
+
+model ProjectStatusUpdate {
+  id          String            @id @default(cuid())
+  projectId   String
+  userId      String
+  oldStatus   ProjectStatus?
+  newStatus   ProjectStatus
+  remarks     String?
+  attachments Json?
+  createdAt   DateTime          @default(now())
+  project     GovernmentProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user        User              @relation(fields: [userId], references: [id])
+}
+
+model WhatsAppMessage {
+  id          String    @id @default(cuid())
+  phone       String
+  message     String
+  rawText     String
+  isProcessed Boolean   @default(false)
+  grievanceId String?
+  createdAt   DateTime  @default(now())
+  processedAt DateTime?
+}
+
+model CalendarEvent {
+  id            String    @id @default(cuid())
+  title         String
+  description   String?
+  startDate     DateTime
+  endDate       DateTime?
+  location      String?
+  attendees     Json?
+  createdBy     String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  createdByUser User      @relation(fields: [createdBy], references: [id])
 }
 
 enum Role {
@@ -27,6 +323,37 @@ enum GrievanceStatus {
   RESOLVED
   CLOSED
   REJECTED
+  WIP
+}
+
+enum GrievanceCategory {
+  HEALTH
+  JOBS
+  CIVIL_WORK
+  COLLECTIVE_REQUEST
+  CM_FUND
+  EDUCATION
+  AGRICULTURE
+  INFRASTRUCTURE
+  SOCIAL_WELFARE
+  TTD_SERVICES
+  PUBLIC_SERVICES
+  OTHER
+}
+
+enum RequestOrigin {
+  VILLAGE
+  MANDAL
+  DISTRICT
+  STATE
+}
+
+enum IntakeMethod {
+  BACK_OFFICE
+  WHATSAPP
+  PA_ENTRY
+  FIELD_ENTRY
+  ONLINE
 }
 
 enum Priority {
@@ -36,170 +363,10 @@ enum Priority {
   URGENT
 }
 
-model User {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
-  passwordHash String
-  role         Role     @default(PUBLIC)
-  phone        String?  @db.VarChar(32)
-  status       String?  @default("active")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  assignedGrievances Grievance[] @relation("AssignedToUser")
-  statusUpdates     GrievanceStatusUpdate[]
-  auditLogs         AuditLog[]
-  notifications     Notification[]
-  governmentProjects GovernmentProject[]
-  patientGrievances PatientGrievance[]
-  individualGrievances IndividualGrievance[]
-  jobRequests       JobRequest[]
-  ttdRequests       TTDRequest[]
-  assignedProjects  GovernmentProject[] @relation("ProjectAssignedTo")
-  assignedPatients  PatientGrievance[] @relation("PatientAssignedTo")
-  assignedIndividuals IndividualGrievance[] @relation("IndividualAssignedTo")
-  assignedJobs      JobRequest[] @relation("JobAssignedTo")
-  assignedTTDs      TTDRequest[] @relation("TTDAssignedTo")
-}
-
-model Category {
-  id          String  @id @default(cuid())
-  name        String  @unique
-  color       String? // optional UI color
-  description String?
-  isActive    Boolean @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @default(now()) @updatedAt
-
-  grievances Grievance[]
-}
-
-model Grievance {
-  id                String          @id @default(cuid())
-  referenceNumber   String          @unique @default("TEMP-GRV-0000") // Format: GRV-YYYY-XXXX
-  title             String
-  description       String
-  status            GrievanceStatus @default(PENDING)
-  priority          Priority        @default(MEDIUM)
-  
-  // Requester Information
-  requesterName     String          @default("Unknown Requester")
-  requesterPhone    String          @db.VarChar(32) @default("+910000000000")
-  requesterEmail    String?
-  requesterAddress  String?
-  
-  // Location Information
-  village           String?
-  mandal            String?
-  district          String?
-  state             String?         @default("Telangana")
-  pincode           String?
-  latitude          Float?
-  longitude         Float?
-  
-  // Additional Details
-  estimatedCost     Float?
-  expectedResolutionDate DateTime?
-  actualResolutionDate   DateTime?
-  remarks           String?
-  
-  // Timestamps
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-  
-  // Relations
-  category          Category?       @relation(fields: [categoryId], references: [id])
-  categoryId        String?
-  
-  assignedTo        User?           @relation("AssignedToUser", fields: [assignedToId], references: [id])
-  assignedToId      String?
-  
-  attachments       Attachment[]
-  statusUpdates     GrievanceStatusUpdate[]
-}
-
-model Attachment {
-  id          String    @id @default(cuid())
-  fileName    String
-  originalName String
-  url         String
-  mimeType    String
-  fileSize    Int       // Size in bytes
-  grievance   Grievance @relation(fields: [grievanceId], references: [id], onDelete: Cascade)
-  grievanceId String
-  uploadedBy  String?
-  createdAt   DateTime  @default(now())
-}
-
-model GrievanceStatusUpdate {
-  id          String          @id @default(cuid())
-  grievance   Grievance       @relation(fields: [grievanceId], references: [id], onDelete: Cascade)
-  grievanceId String
-  user        User            @relation(fields: [userId], references: [id])
-  userId      String
-  oldStatus   GrievanceStatus?
-  newStatus   GrievanceStatus
-  remarks     String?
-  createdAt   DateTime        @default(now())
-}
-
-model AuditLog {
-  id          String   @id @default(cuid())
-  action      String   // CREATE, UPDATE, DELETE, STATUS_CHANGE, ASSIGNMENT
-  entityType  String   // GRIEVANCE, USER, CATEGORY, etc.
-  entityId    String
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  oldValues   Json?    // Previous state
-  newValues   Json?    // New state
-  ipAddress   String?
-  userAgent   String?
-  createdAt   DateTime @default(now())
-}
-
-model Notification {
-  id          String    @id @default(cuid())
-  type        String    // GRIEVANCE_CREATED, STATUS_CHANGED, etc.
-  title       String
-  message     String
-  isRead      Boolean   @default(false)
-  userId      String
-  user        User      @relation(fields: [userId], references: [id])
-  data        Json?     // Additional context data
-  createdAt   DateTime  @default(now())
-}
-
 enum ProjectStatus {
   COMPLETED
   IN_PROGRESS
   YET_TO_COMPLETE
-}
-
-model GovernmentProject {
-  id              String        @id @default(cuid())
-  referenceNumber String        @unique @default("TEMP-PRJ-0000")
-  projectName     String
-  description     String?
-  ministerName    String
-  status          ProjectStatus
-  estimatedCost   Float?
-  actualCost      Float?
-  startDate       DateTime?
-  completionDate  DateTime?
-  village         String?
-  mandal          String?
-  district        String?
-  state           String        @default("Telangana")
-  beneficiaries   Int?
-  remarks         String?
-  attachments     Json?         // Array of file URLs
-  assignedToId    String?
-  assignedTo      User?         @relation("ProjectAssignedTo", fields: [assignedToId], references: [id])
-  createdBy       String
-  createdByUser   User          @relation(fields: [createdBy], references: [id])
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
 }
 
 enum GrievanceType {
@@ -209,84 +376,3 @@ enum GrievanceType {
   TTD_REQUEST
   OTHER
 }
-
-model PatientGrievance {
-  id                    String   @id @default(cuid())
-  referenceNumber       String   @unique @default("TEMP-PAT-0000")
-  patientName           String
-  patientPhone          String
-  village               String?
-  caretakerName         String?
-  caretakerPhone        String?
-  issue                 String
-  hospital              String?
-  doctor                String?
-  referredByName        String?
-  referredByNumber      String?
-  status                String   @default("NEW")
-  assignedToId          String?
-  assignedTo            User?    @relation("PatientAssignedTo", fields: [assignedToId], references: [id])
-  qrCode                String?  // QR code data
-  createdBy             String
-  createdByUser         User     @relation(fields: [createdBy], references: [id])
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-}
-
-model IndividualGrievance {
-  id                String   @id @default(cuid())
-  name              String
-  mobileNumber      String
-  village           String?
-  contactName       String?
-  contactNumber     String?
-  office            String?
-  subject           String
-  referredByName    String?
-  referredByNumber  String?
-  assignedToId      String?
-  assignedTo        User?    @relation("IndividualAssignedTo", fields: [assignedToId], references: [id])
-  createdBy         String
-  createdByUser     User     @relation(fields: [createdBy], references: [id])
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-}
-
-model JobRequest {
-  id                String   @id @default(cuid())
-  name              String
-  mobileNumber      String
-  village           String?
-  contactName       String?
-  contactNumber     String?
-  office            String?
-  subject           String
-  referredByName    String?
-  referredByNumber  String?
-  assignedToId      String?
-  assignedTo        User?    @relation("JobAssignedTo", fields: [assignedToId], references: [id])
-  createdBy         String
-  createdByUser     User     @relation(fields: [createdBy], references: [id])
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-}
-
-model TTDRequest {
-  id                    String      @id @default(cuid())
-  darshanDate           DateTime
-  darshanType           String
-  accommodationFrom     DateTime?
-  accommodationTo       DateTime?
-  guests                Json        // Array of guest details
-  referenceName         String?
-  referenceNumber       String?
-  referenceVillage      String?
-  referenceMandal       String?
-  assignedToId          String?
-  assignedTo            User?       @relation("TTDAssignedTo", fields: [assignedToId], references: [id])
-  createdBy             String
-  createdByUser         User        @relation(fields: [createdBy], references: [id])
-  createdAt             DateTime    @default(now())
-  updatedAt             DateTime    @updatedAt
-}
-
