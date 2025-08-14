@@ -274,7 +274,7 @@ export default function GrievancesPage() {
       </Card>
 
       {/* Grievances Table */}
-      <Card>
+      {/* <Card>
         <CardHeader>
           <CardTitle>Grievances ({filteredGrievances.length})</CardTitle>
           <CardDescription>
@@ -453,7 +453,7 @@ export default function GrievancesPage() {
             </TableBody>
           </Table>
         </CardContent>
-      </Card>
+      </Card> */}
     </div>
   )
 }

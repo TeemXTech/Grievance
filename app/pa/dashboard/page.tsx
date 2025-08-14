@@ -38,61 +38,45 @@ import {
   useAssignRequest,
 } from "@/hooks/use-api"
 
-export default function PADashboard() {
-  const { data: session } = useSession()
-  const router = useRouter()
-  const [searchTerm, setSearchTerm] = useState("")
-  const [filterStatus, setFilterStatus] = useState<"all" | GrievanceStatus>("all")
-  const [activeTab, setActiveTab] = useState("requests")
-  const [currentPage, setCurrentPage] = useState(1)
-  const [currentPage, setCurrentPage] = useState(1)
+export default function PaDashboard() {
+    const { data: session } = useSession();
+  const router = useRouter();
 
-  // Handle URL parameters
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [activeTab, setActiveTab] = useState("requests");
+  const [currentPage, setCurrentPage] = useState(1);
+
   useEffect(() => {
     const url = new URL(window.location.href);
     const tab = url.searchParams.get("tab");
     const status = url.searchParams.get("status");
-    
-    if (tab) {
-      setActiveTab(tab);
-    }
-    if (status) {
-      setFilterStatus(status as any);
-    }
-  }, [])
+    if (tab) setActiveTab(tab);
+    if (status) setFilterStatus(status);
+  }, []);
 
-  const { data: stats, isLoading: statsLoading, error: statsError } = useDashboardStats({
-    refetchInterval: 30000 // Refetch every 30 seconds
-  })
-  const { data: requestsData, isLoading: requestsLoading, error: requestsError } = useRequests({
-    status: filterStatus === "all" ? undefined : filterStatus,
-    search: searchTerm,
-    limit: 20,
-    page: currentPage
-  }, {
-    refetchInterval: 15000 // Refetch every 15 seconds
-  })
+  // ✅ Hooks always at top level
+  const { data: stats, isLoading: statsLoading, error: statsError } = useDashboardStats({ refetchInterval: 30000 });
+  const { data: requestsData, isLoading: requestsLoading, error: requestsError } = useRequests(
+    {
+      status: filterStatus === "all" ? undefined : filterStatus,
+      search: searchTerm,
+      limit: 20,
+      page: currentPage,
+    },
+    { refetchInterval: 15000 }
+  );
   const { data: whatsappMessages, isLoading: whatsappLoading, error: whatsappError } = usePendingWhatsAppMessages({
-    refetchInterval: 10000 // Refetch every 10 seconds
-  })
-  const { data: users, error: usersError } = useUsers({
-    refetchInterval: 60000 // Refetch every minute
-  })
+    refetchInterval: 10000,
+  });
+  const { data: users, error: usersError } = useUsers({ refetchInterval: 60000 });
 
-  // Handle API errors
-  if (statsError || requestsError || whatsappError || usersError) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-lg">
-          <h2 className="text-2xl font-bold text-red-600 mb-4">Error Loading Dashboard</h2>
-          <p className="text-gray-600">There was an error loading the dashboard data. Please try again later.</p>
-        </div>
-      </div>
-    )
-  }
+  const approveWhatsAppMessage = useApproveWhatsAppMessage();
+  const assignRequest = useAssignRequest();
 
-  const approveWhatsAppMessage = useApproveWhatsAppMessage()
-  const assignRequest = useAssignRequest()
+  const hasError = statsError || requestsError || whatsappError || usersError;
+  const fieldTeam = users?.filter((user) => user.role?.name === "FIELD_TEAM") || [];
+
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -140,7 +124,6 @@ export default function PADashboard() {
     }
   }
 
-  const fieldTeam = users?.filter((user: any) => user.role?.name === "FIELD_TEAM") || []
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -162,7 +145,7 @@ export default function PADashboard() {
           {/* Requests Tab */}
           <TabsContent value="requests">
             {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -479,6 +462,8 @@ export default function PADashboard() {
               </CardHeader>
             </Card>
           </TabsContent>
+        </Tabs>
+        </TabsContent>
         </Tabs>
       </div>
     </div>
