@@ -154,7 +154,7 @@ const mockWhatsAppMessages = [
 export const dashboardAPI = {
   getStats: async () => {
     try {
-      const response = await api.get("/dashboard/stats")
+      const response = await api.get("/api/dashboard/stats")
       return response.data
     } catch (error) {
       console.warn("API not available, using mock data")
@@ -164,7 +164,7 @@ export const dashboardAPI = {
 
   getRecentRequests: async () => {
     try {
-      const response = await api.get("/dashboard/recent-requests")
+      const response = await api.get("/api/dashboard/recent-requests")
       return response.data
     } catch (error) {
       console.warn("API not available, using mock data")
@@ -174,7 +174,7 @@ export const dashboardAPI = {
 
   getTrends: async () => {
     try {
-      const response = await api.get("/dashboard/trends")
+      const response = await api.get("/api/dashboard/trends")
       return response.data
     } catch (error) {
       console.warn("API not available, using mock data")
@@ -184,7 +184,7 @@ export const dashboardAPI = {
 
   getCategoryDistribution: async () => {
     try {
-      const response = await api.get("/dashboard/category-distribution")
+      const response = await api.get("/api/dashboard/category-distribution")
       return response.data
     } catch (error) {
       console.warn("API not available, using mock data")
@@ -196,17 +196,17 @@ export const dashboardAPI = {
 export const requestsAPI = {
   getAll: async (filters?: any) => {
     try {
-      const response = await api.get("/requests", { params: filters })
+      const response = await api.get("/api/grievances", { params: filters })
       return response.data
     } catch (error) {
       console.warn("API not available, using mock data")
-      return mockRequests
+      return { grievances: mockRequests, pagination: { page: 1, limit: 20, total: mockRequests.length, pages: 1 } }
     }
   },
 
   getById: async (id: string) => {
     try {
-      const response = await api.get(`/requests/${id}`)
+      const response = await api.get(`/api/grievances/${id}`)
       return response.data
     } catch (error) {
       console.warn("API not available, using mock data")
@@ -216,7 +216,7 @@ export const requestsAPI = {
 
   create: async (data: any) => {
     try {
-      const response = await api.post("/requests", data)
+      const response = await api.post("/api/grievances", data)
       return response.data
     } catch (error) {
       console.warn("API not available, returning mock response")
@@ -226,7 +226,7 @@ export const requestsAPI = {
 
   update: async (id: string, data: any) => {
     try {
-      const response = await api.put(`/requests/${id}`, data)
+      const response = await api.put(`/api/grievances/${id}`, data)
       return response.data
     } catch (error) {
       console.warn("API not available, returning mock response")
@@ -236,7 +236,7 @@ export const requestsAPI = {
 
   assign: async (id: string, assigneeId: string) => {
     try {
-      const response = await api.post(`/requests/${id}/assign`, { assigneeId })
+      const response = await api.post(`/api/requests/${id}/assign`, { assigneeId })
       return response.data
     } catch (error) {
       console.warn("API not available, returning mock response")
@@ -246,9 +246,9 @@ export const requestsAPI = {
 }
 
 export const whatsappAPI = {
-  getPendingMessages: async () => {
+  getPending: async () => {
     try {
-      const response = await api.get("/whatsapp/pending")
+      const response = await api.get("/api/whatsapp/pending")
       return response.data
     } catch (error) {
       console.warn("API not available, using mock data")
@@ -256,9 +256,9 @@ export const whatsappAPI = {
     }
   },
 
-  approveMessage: async (id: string) => {
+  approveMessage: async ({ id, data }: { id: string; data: any }) => {
     try {
-      const response = await api.post(`/whatsapp/${id}/approve`)
+      const response = await api.post(`/api/whatsapp/${id}/approve`, data)
       return response.data
     } catch (error) {
       console.warn("API not available, returning mock response")
@@ -270,7 +270,7 @@ export const whatsappAPI = {
 export const usersAPI = {
   getAll: async () => {
     try {
-      const response = await api.get("/users")
+      const response = await api.get("/api/users")
       return response.data
     } catch (error) {
       console.warn("API not available, using mock data")
@@ -280,7 +280,7 @@ export const usersAPI = {
 
   getById: async (id: string) => {
     try {
-      const response = await api.get(`/users/${id}`)
+      const response = await api.get(`/api/users/${id}`)
       return response.data
     } catch (error) {
       console.warn("API not available, using mock data")

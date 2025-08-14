@@ -28,6 +28,19 @@ async function main() {
     }
   });
 
+  // Create default Back Officer user
+  await prisma.user.upsert({
+    where: { email: 'back@example.com' },
+    update: {},
+    create: {
+      email: 'back@example.com',
+      name: 'Back Officer',
+      passwordHash: '$2a$10$VJmxYqXK8bXZutQIV/ZuweH.BVEpnGK/yqPQmBdhPouY9Xh.w1pO6', // "password123"
+      role: 'BACK_OFFICER',
+      phone: '1234567892'
+    }
+  });
+
   console.log('Database has been seeded');
 }
 

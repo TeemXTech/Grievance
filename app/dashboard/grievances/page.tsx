@@ -1,6 +1,5 @@
 "use client"
 
-import { GrievanceList } from '@/components/grievance-list'
 import { useEffect, useState } from 'react'
 import {
   Dialog,
@@ -36,8 +35,8 @@ import {
 } from 'lucide-react'
 
 export default function GrievancesPage() {
-  const [grievances, setGrievances] = useState([])
-  const [categories, setCategories] = useState([])
+  const [grievances, setGrievances] = useState<any[]>([])
+  const [categories, setCategories] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -45,6 +44,8 @@ export default function GrievancesPage() {
   const [categoryFilter, setCategoryFilter] = useState("all")
 
   useEffect(() => {
+    let isMounted = true
+    
     const fetchData = async () => {
       try {
         const [grievancesRes, categoriesRes] = await Promise.all([
@@ -61,56 +62,58 @@ export default function GrievancesPage() {
           categoriesRes.json()
         ])
 
-        setGrievances(grievancesData)
-        setCategories(categoriesData)
+        if (isMounted) {
+          setGrievances(Array.isArray(grievancesData) ? grievancesData : [])
+          setCategories(Array.isArray(categoriesData) ? categoriesData : [])
+        }
       } catch (error) {
         console.error('Error fetching data:', error)
+        if (isMounted) {
+          setGrievances([])
+          setCategories([])
+        }
       } finally {
-        setLoading(false)
+        if (isMounted) {
+          setLoading(false)
+        }
       }
     }
 
     fetchData()
+    return () => { isMounted = false }
   }, [])
 
-  if (loading) {
-    return <div className="container mx-auto py-10">Loading...</div>
-  }
-
-  return (
-    <div className="container mx-auto py-10">
-      <h1 className="text-2xl font-bold mb-4">Grievances</h1>
-      <GrievanceList grievances={grievances} categories={categories} />
-    </div>
-  )
-
-  const filteredGrievances = grievances.filter(grievance => {
-    const matchesSearch = grievance.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         grievance.citizenName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         grievance.location.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredGrievances = grievances.filter((grievance: any) => {
+    const matchesSearch = (grievance.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (grievance.requesterName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (grievance.village || '').toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === "all" || grievance.status === statusFilter
     const matchesPriority = priorityFilter === "all" || grievance.priority === priorityFilter
-    const matchesCategory = categoryFilter === "all" || grievance.category === categoryFilter
+    const matchesCategory = categoryFilter === "all" || (grievance.category?.name === categoryFilter)
 
     return matchesSearch && matchesStatus && matchesPriority && matchesCategory
   })
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "Resolved": return "bg-green-100 text-green-800"
-      case "In Progress": return "bg-blue-100 text-blue-800"
-      case "Pending": return "bg-orange-100 text-orange-800"
+      case "RESOLVED": return "bg-green-100 text-green-800"
+      case "IN_PROGRESS": return "bg-blue-100 text-blue-800"
+      case "PENDING": return "bg-orange-100 text-orange-800"
       default: return "bg-gray-100 text-gray-800"
     }
   }
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case "High": return "border-red-500 text-red-700"
-      case "Medium": return "border-yellow-500 text-yellow-700"
-      case "Low": return "border-green-500 text-green-700"
+      case "HIGH": return "border-red-500 text-red-700"
+      case "MEDIUM": return "border-yellow-500 text-yellow-700"
+      case "LOW": return "border-green-500 text-green-700"
       default: return "border-gray-500 text-gray-700"
     }
+  }
+
+  if (loading) {
+    return <div className="container mx-auto py-10">Loading...</div>
   }
 
   return (
@@ -148,11 +151,11 @@ export default function GrievancesPage() {
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="infrastructure">Infrastructure</SelectItem>
-                      <SelectItem value="utilities">Utilities</SelectItem>
-                      <SelectItem value="healthcare">Healthcare</SelectItem>
-                      <SelectItem value="education">Education</SelectItem>
-                      <SelectItem value="others">Others</SelectItem>
+                      {categories.map((category: any) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -169,9 +172,9 @@ export default function GrievancesPage() {
                       <SelectValue placeholder="Select priority" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="HIGH">High</SelectItem>
+                      <SelectItem value="MEDIUM">Medium</SelectItem>
+                      <SelectItem value="LOW">Low</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -233,9 +236,9 @@ export default function GrievancesPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="Pending">Pending</SelectItem>
-                  <SelectItem value="In Progress">In Progress</SelectItem>
-                  <SelectItem value="Resolved">Resolved</SelectItem>
+                  <SelectItem value="PENDING">Pending</SelectItem>
+                  <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                  <SelectItem value="RESOLVED">Resolved</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -247,9 +250,9 @@ export default function GrievancesPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Priorities</SelectItem>
-                  <SelectItem value="High">High</SelectItem>
-                  <SelectItem value="Medium">Medium</SelectItem>
-                  <SelectItem value="Low">Low</SelectItem>
+                  <SelectItem value="HIGH">High</SelectItem>
+                  <SelectItem value="MEDIUM">Medium</SelectItem>
+                  <SelectItem value="LOW">Low</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -261,11 +264,11 @@ export default function GrievancesPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Categories</SelectItem>
-                  <SelectItem value="Infrastructure">Infrastructure</SelectItem>
-                  <SelectItem value="Utilities">Utilities</SelectItem>
-                  <SelectItem value="Healthcare">Healthcare</SelectItem>
-                  <SelectItem value="Education">Education</SelectItem>
-                  <SelectItem value="Others">Others</SelectItem>
+                  {categories.map((category: any) => (
+                    <SelectItem key={category.id} value={category.name}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -274,7 +277,7 @@ export default function GrievancesPage() {
       </Card>
 
       {/* Grievances Table */}
-      {/* <Card>
+      <Card>
         <CardHeader>
           <CardTitle>Grievances ({filteredGrievances.length})</CardTitle>
           <CardDescription>
@@ -282,178 +285,68 @@ export default function GrievancesPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Title</TableHead>
-                <TableHead>Citizen</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Priority</TableHead>
-                <TableHead>Assigned To</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredGrievances.map((grievance) => (
-                <TableRow key={grievance.id}>
-                  <TableCell className="font-medium">{grievance.id}</TableCell>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{grievance.title}</div>
-                      <div className="text-sm text-gray-500">{grievance.location}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{grievance.citizenName}</div>
-                      <div className="text-sm text-gray-500">{grievance.citizenPhone}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{grievance.category}</TableCell>
-                  <TableCell>
-                    <Badge className={getStatusColor(grievance.status)}>
-                      {grievance.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={getPriorityColor(grievance.priority)}>
-                      {grievance.priority}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{grievance.assignedTo}</TableCell>
-                  <TableCell>{grievance.createdAt}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-2xl">
-                          <DialogHeader>
-                            <DialogTitle>Grievance Details - {grievance.id}</DialogTitle>
-                          </DialogHeader>
-                          <div className="space-y-4">
-                            <div>
-                              <Label className="font-medium">Title</Label>
-                              <p>{grievance.title}</p>
-                            </div>
-                            <div>
-                              <Label className="font-medium">Description</Label>
-                              <p>{grievance.description}</p>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <Label className="font-medium">Status</Label>
-                                <Badge className={getStatusColor(grievance.status)}>
-                                  {grievance.status}
-                                </Badge>
-                              </div>
-                              <div>
-                                <Label className="font-medium">Priority</Label>
-                                <Badge variant="outline" className={getPriorityColor(grievance.priority)}>
-                                  {grievance.priority}
-                                </Badge>
-                              </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <Label className="font-medium">Category</Label>
-                                <p>{grievance.category}</p>
-                              </div>
-                              <div>
-                                <Label className="font-medium">Location</Label>
-                                <p>{grievance.location}</p>
-                              </div>
-                            </div>
-                            <div>
-                              <Label className="font-medium">Citizen Information</Label>
-                              <div className="grid grid-cols-2 gap-4 mt-2">
-                                <div>
-                                  <Label>Name</Label>
-                                  <p>{grievance.citizenName}</p>
-                                </div>
-                                <div>
-                                  <Label>Phone</Label>
-                                  <p>{grievance.citizenPhone}</p>
-                                </div>
-                                <div>
-                                  <Label>Email</Label>
-                                  <p>{grievance.citizenEmail}</p>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <Label className="font-medium">Assigned To</Label>
-                                <p>{grievance.assignedTo}</p>
-                              </div>
-                              <div>
-                                <Label className="font-medium">Estimated Resolution</Label>
-                                <p>{grievance.estimatedResolution}</p>
-                              </div>
-                            </div>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <UserPlus className="h-4 w-4" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Assign Grievance</DialogTitle>
-                            <DialogDescription>
-                              Assign this grievance to an officer
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="space-y-4">
-                            <div>
-                              <Label>Select Officer</Label>
-                              <Select>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Choose an officer" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="officer1">Officer Kumar</SelectItem>
-                                  <SelectItem value="officer2">Officer Sharma</SelectItem>
-                                  <SelectItem value="officer3">Officer Patel</SelectItem>
-                                  <SelectItem value="officer4">Officer Reddy</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div>
-                              <Label>Estimated Resolution Date</Label>
-                              <Input type="date" />
-                            </div>
-                            <div>
-                              <Label>Notes</Label>
-                              <Textarea placeholder="Add any additional notes..." />
-                            </div>
-                          </div>
-                          <div className="flex justify-end gap-2">
-                            <Button variant="outline">Cancel</Button>
-                            <Button>Assign</Button>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                      <Button variant="ghost" size="sm">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          {filteredGrievances.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              No grievances found matching your criteria.
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Reference</TableHead>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Requester</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Priority</TableHead>
+                  <TableHead>Village</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredGrievances.map((grievance: any) => (
+                  <TableRow key={grievance.id}>
+                    <TableCell className="font-mono text-sm">{grievance.referenceNumber}</TableCell>
+                    <TableCell>
+                      <div className="font-medium">{grievance.title}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{grievance.requesterName}</div>
+                        <div className="text-sm text-gray-500">{grievance.requesterPhone}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>{grievance.category?.name || 'N/A'}</TableCell>
+                    <TableCell>
+                      <Badge className={getStatusColor(grievance.status)}>
+                        {grievance.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={getPriorityColor(grievance.priority)}>
+                        {grievance.priority}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{grievance.village || 'N/A'}</TableCell>
+                    <TableCell>{new Date(grievance.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="sm">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
-      </Card> */}
+      </Card>
     </div>
   )
 }

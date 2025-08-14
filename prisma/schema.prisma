@@ -16,6 +16,7 @@ enum Role {
   MINISTER
   PA
   FIELD_OFFICER
+  BACK_OFFICER
 }
 
 enum GrievanceStatus {
@@ -50,6 +51,16 @@ model User {
   statusUpdates     GrievanceStatusUpdate[]
   auditLogs         AuditLog[]
   notifications     Notification[]
+  governmentProjects GovernmentProject[]
+  patientGrievances PatientGrievance[]
+  individualGrievances IndividualGrievance[]
+  jobRequests       JobRequest[]
+  ttdRequests       TTDRequest[]
+  assignedProjects  GovernmentProject[] @relation("ProjectAssignedTo")
+  assignedPatients  PatientGrievance[] @relation("PatientAssignedTo")
+  assignedIndividuals IndividualGrievance[] @relation("IndividualAssignedTo")
+  assignedJobs      JobRequest[] @relation("JobAssignedTo")
+  assignedTTDs      TTDRequest[] @relation("TTDAssignedTo")
 }
 
 model Category {
@@ -157,5 +168,125 @@ model Notification {
   user        User      @relation(fields: [userId], references: [id])
   data        Json?     // Additional context data
   createdAt   DateTime  @default(now())
+}
+
+enum ProjectStatus {
+  COMPLETED
+  IN_PROGRESS
+  YET_TO_COMPLETE
+}
+
+model GovernmentProject {
+  id              String        @id @default(cuid())
+  referenceNumber String        @unique @default("TEMP-PRJ-0000")
+  projectName     String
+  description     String?
+  ministerName    String
+  status          ProjectStatus
+  estimatedCost   Float?
+  actualCost      Float?
+  startDate       DateTime?
+  completionDate  DateTime?
+  village         String?
+  mandal          String?
+  district        String?
+  state           String        @default("Telangana")
+  beneficiaries   Int?
+  remarks         String?
+  attachments     Json?         // Array of file URLs
+  assignedToId    String?
+  assignedTo      User?         @relation("ProjectAssignedTo", fields: [assignedToId], references: [id])
+  createdBy       String
+  createdByUser   User          @relation(fields: [createdBy], references: [id])
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+enum GrievanceType {
+  PATIENT_ISSUE
+  INDIVIDUAL_ISSUE
+  JOB_REQUEST
+  TTD_REQUEST
+  OTHER
+}
+
+model PatientGrievance {
+  id                    String   @id @default(cuid())
+  referenceNumber       String   @unique @default("TEMP-PAT-0000")
+  patientName           String
+  patientPhone          String
+  village               String?
+  caretakerName         String?
+  caretakerPhone        String?
+  issue                 String
+  hospital              String?
+  doctor                String?
+  referredByName        String?
+  referredByNumber      String?
+  status                String   @default("NEW")
+  assignedToId          String?
+  assignedTo            User?    @relation("PatientAssignedTo", fields: [assignedToId], references: [id])
+  qrCode                String?  // QR code data
+  createdBy             String
+  createdByUser         User     @relation(fields: [createdBy], references: [id])
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model IndividualGrievance {
+  id                String   @id @default(cuid())
+  name              String
+  mobileNumber      String
+  village           String?
+  contactName       String?
+  contactNumber     String?
+  office            String?
+  subject           String
+  referredByName    String?
+  referredByNumber  String?
+  assignedToId      String?
+  assignedTo        User?    @relation("IndividualAssignedTo", fields: [assignedToId], references: [id])
+  createdBy         String
+  createdByUser     User     @relation(fields: [createdBy], references: [id])
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model JobRequest {
+  id                String   @id @default(cuid())
+  name              String
+  mobileNumber      String
+  village           String?
+  contactName       String?
+  contactNumber     String?
+  office            String?
+  subject           String
+  referredByName    String?
+  referredByNumber  String?
+  assignedToId      String?
+  assignedTo        User?    @relation("JobAssignedTo", fields: [assignedToId], references: [id])
+  createdBy         String
+  createdByUser     User     @relation(fields: [createdBy], references: [id])
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model TTDRequest {
+  id                    String      @id @default(cuid())
+  darshanDate           DateTime
+  darshanType           String
+  accommodationFrom     DateTime?
+  accommodationTo       DateTime?
+  guests                Json        // Array of guest details
+  referenceName         String?
+  referenceNumber       String?
+  referenceVillage      String?
+  referenceMandal       String?
+  assignedToId          String?
+  assignedTo            User?       @relation("TTDAssignedTo", fields: [assignedToId], references: [id])
+  createdBy             String
+  createdByUser         User        @relation(fields: [createdBy], references: [id])
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
 }
 

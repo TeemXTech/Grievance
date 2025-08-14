@@ -39,7 +39,7 @@ import {
 } from "@/hooks/use-api"
 
 export default function PaDashboard() {
-    const { data: session } = useSession();
+  const { data: session } = useSession();
   const router = useRouter();
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -55,7 +55,7 @@ export default function PaDashboard() {
     if (status) setFilterStatus(status);
   }, []);
 
-  // ✅ Hooks always at top level
+  // Hooks always at top level
   const { data: stats, isLoading: statsLoading, error: statsError } = useDashboardStats({ refetchInterval: 30000 });
   const { data: requestsData, isLoading: requestsLoading, error: requestsError } = useRequests(
     {
@@ -76,7 +76,6 @@ export default function PaDashboard() {
 
   const hasError = statsError || requestsError || whatsappError || usersError;
   const fieldTeam = users?.filter((user) => user.role?.name === "FIELD_TEAM") || [];
-
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -124,7 +123,6 @@ export default function PaDashboard() {
     }
   }
 
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -146,255 +144,272 @@ export default function PaDashboard() {
           <TabsContent value="requests">
             {/* Quick Stats */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Card 
-                  className="professional-card bg-white transform transition duration-200 hover:scale-105 cursor-pointer hover:shadow-lg relative overflow-hidden" 
-                  onClick={() => {
-                    setActiveTab("requests");
-                    setFilterStatus("PENDING");
-                    router.push("/pa/dashboard?tab=requests&status=PENDING");
-                  }}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-br from-orange-50 to-transparent opacity-50"/>
-                  <CardContent className="p-6 h-full flex flex-col justify-between relative">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Pending Review</p>
-                        {statsLoading ? (
-                          <Loader2 className="w-6 h-6 animate-spin text-orange-600" />
-                        ) : (
-                          <p className="text-3xl font-bold text-orange-600">{stats?.pendingRequests || 0}</p>
-                        )}
-                      </div>
-                      <Clock className="w-8 h-8 text-orange-600" />
-                    </div>
-                    <div className="mt-4 flex items-center text-xs text-gray-500">
-                      <Clock className="w-3 h-3 mr-1" />
-                      <span>Click to view pending requests</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>View and manage pending requests</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Card 
+                      className="professional-card bg-white transform transition duration-200 hover:scale-105 cursor-pointer hover:shadow-lg relative overflow-hidden" 
+                      onClick={() => {
+                        setActiveTab("requests");
+                        setFilterStatus("PENDING");
+                        router.push("/pa/dashboard?tab=requests&status=PENDING");
+                      }}
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-br from-orange-50 to-transparent opacity-50"/>
+                      <CardContent className="p-6 h-full flex flex-col justify-between relative">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-gray-600">Pending Review</p>
+                            {statsLoading ? (
+                              <Loader2 className="w-6 h-6 animate-spin text-orange-600" />
+                            ) : (
+                              <p className="text-3xl font-bold text-orange-600">{stats?.pendingRequests || 0}</p>
+                            )}
+                          </div>
+                          <Clock className="w-8 h-8 text-orange-600" />
+                        </div>
+                        <div className="mt-4 flex items-center text-xs text-gray-500">
+                          <Clock className="w-3 h-3 mr-1" />
+                          <span>Click to view pending requests</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>View and manage pending requests</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
 
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Card 
-                  className="professional-card bg-white transform transition duration-200 hover:scale-105 cursor-pointer hover:shadow-lg relative overflow-hidden"
-                  onClick={() => {
-                    setActiveTab("requests");
-                    setFilterStatus("all");
-                    router.push("/pa/dashboard?tab=requests&status=all");
-                  }}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-transparent opacity-50"/>
-                  <CardContent className="p-6 h-full flex flex-col justify-between relative">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Total Requests</p>
-                        {statsLoading ? (
-                          <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-                        ) : (
-                          <p className="text-3xl font-bold text-blue-600">{stats?.totalRequests || 0}</p>
-                        )}
-                      </div>
-                      <UserCheck className="w-8 h-8 text-blue-600" />
-                    </div>
-                    <div className="mt-4 flex items-center text-xs text-gray-500">
-                      <FileText className="w-3 h-3 mr-1" />
-                      <span>Click to view all requests</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>View all grievance requests</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Card 
+                      className="professional-card bg-white transform transition duration-200 hover:scale-105 cursor-pointer hover:shadow-lg relative overflow-hidden"
+                      onClick={() => {
+                        setActiveTab("requests");
+                        setFilterStatus("all");
+                        router.push("/pa/dashboard?tab=requests&status=all");
+                      }}
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-transparent opacity-50"/>
+                      <CardContent className="p-6 h-full flex flex-col justify-between relative">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-gray-600">Total Requests</p>
+                            {statsLoading ? (
+                              <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                            ) : (
+                              <p className="text-3xl font-bold text-blue-600">{stats?.totalRequests || 0}</p>
+                            )}
+                          </div>
+                          <UserCheck className="w-8 h-8 text-blue-600" />
+                        </div>
+                        <div className="mt-4 flex items-center text-xs text-gray-500">
+                          <FileText className="w-3 h-3 mr-1" />
+                          <span>Click to view all requests</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>View all grievance requests</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
 
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Card 
-                  className="professional-card bg-white transform transition duration-200 hover:scale-105 cursor-pointer hover:shadow-lg relative overflow-hidden"
-                  onClick={() => {
-                    setActiveTab("whatsapp");
-                    router.push("/pa/dashboard?tab=whatsapp");
-                  }}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-br from-green-50 to-transparent opacity-50"/>
-                  <CardContent className="p-6 h-full flex flex-col justify-between relative">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">WhatsApp Queue</p>
-                        {whatsappLoading ? (
-                          <Loader2 className="w-6 h-6 animate-spin text-green-600" />
-                        ) : (
-                          <p className="text-3xl font-bold text-green-600">{whatsappMessages?.length || 0}</p>
-                        )}
-                      </div>
-                      <MessageSquare className="w-8 h-8 text-green-600" />
-                    </div>
-                    <div className="mt-4 flex items-center text-xs text-gray-500">
-                      <PlusCircle className="w-3 h-3 mr-1" />
-                      <span>Click to process WhatsApp messages</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Convert WhatsApp messages to requests</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Card 
+                      className="professional-card bg-white transform transition duration-200 hover:scale-105 cursor-pointer hover:shadow-lg relative overflow-hidden"
+                      onClick={() => {
+                        setActiveTab("whatsapp");
+                        router.push("/pa/dashboard?tab=whatsapp");
+                      }}
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-br from-green-50 to-transparent opacity-50"/>
+                      <CardContent className="p-6 h-full flex flex-col justify-between relative">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-gray-600">WhatsApp Queue</p>
+                            {whatsappLoading ? (
+                              <Loader2 className="w-6 h-6 animate-spin text-green-600" />
+                            ) : (
+                              <p className="text-3xl font-bold text-green-600">{whatsappMessages?.length || 0}</p>
+                            )}
+                          </div>
+                          <MessageSquare className="w-8 h-8 text-green-600" />
+                        </div>
+                        <div className="mt-4 flex items-center text-xs text-gray-500">
+                          <PlusCircle className="w-3 h-3 mr-1" />
+                          <span>Click to process WhatsApp messages</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Convert WhatsApp messages to requests</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
 
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Card 
-                  className="professional-card bg-white transform transition duration-200 hover:scale-105 cursor-pointer hover:shadow-lg relative overflow-hidden"
-                  onClick={() => setFilterStatus("CRITICAL")}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-br from-red-50 to-transparent opacity-50"/>
-                  <CardContent className="p-6 h-full flex flex-col justify-between relative">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Critical</p>
-                        {statsLoading ? (
-                          <Loader2 className="w-6 h-6 animate-spin text-red-600" />
-                        ) : (
-                          <p className="text-3xl font-bold text-red-600">{stats?.criticalRequests || 0}</p>
-                        )}
-                      </div>
-                      <AlertTriangle className="w-8 h-8 text-red-600" />
-                    </div>
-                    <div className="mt-4 flex items-center text-xs text-gray-500">
-                      <XCircle className="w-3 h-3 mr-1" />
-                      <span>Click to view critical requests</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>View and manage critical priority requests</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Card 
+                      className="professional-card bg-white transform transition duration-200 hover:scale-105 cursor-pointer hover:shadow-lg relative overflow-hidden"
+                      onClick={() => setFilterStatus("CRITICAL")}
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-br from-red-50 to-transparent opacity-50"/>
+                      <CardContent className="p-6 h-full flex flex-col justify-between relative">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-gray-600">Critical</p>
+                            {statsLoading ? (
+                              <Loader2 className="w-6 h-6 animate-spin text-red-600" />
+                            ) : (
+                              <p className="text-3xl font-bold text-red-600">{stats?.criticalRequests || 0}</p>
+                            )}
+                          </div>
+                          <AlertTriangle className="w-8 h-8 text-red-600" />
+                        </div>
+                        <div className="mt-4 flex items-center text-xs text-gray-500">
+                          <XCircle className="w-3 h-3 mr-1" />
+                          <span>Click to view critical requests</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>View and manage critical priority requests</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
 
-        <Tabs defaultValue="pending" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="pending">Pending Requests</TabsTrigger>
-            <TabsTrigger value="whatsapp">WhatsApp Queue</TabsTrigger>
-            <TabsTrigger value="team">Field Team</TabsTrigger>
-            <TabsTrigger value="reports">Reports</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="pending" className="space-y-6">
-            {/* Filters */}
-            <Card className="professional-card">
-              <CardContent className="p-6">
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="flex-1">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                      <Input
-                        placeholder="Search requests..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
-                  </div>
-                  <Select value={filterStatus} onValueChange={setFilterStatus}>
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Filter by status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Requests</SelectItem>
-                      <SelectItem value="NEW">New</SelectItem>
-                      <SelectItem value="PENDING">Pending</SelectItem>
-                      <SelectItem value="ASSIGNED">Assigned</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button variant="outline">
+            {/* Search and Filter Bar */}
+            <div className="flex flex-col sm:flex-row gap-4 mb-6">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  placeholder="Search requests by title, description, or reference number..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger className="w-[180px]">
                     <Filter className="w-4 h-4 mr-2" />
-                    More Filters
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="PENDING">Pending</SelectItem>
+                    <SelectItem value="ASSIGNED">Assigned</SelectItem>
+                    <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                    <SelectItem value="RESOLVED">Resolved</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
             {/* Requests Table */}
-            <Card className="professional-card">
+            <Card>
               <CardHeader>
-                <CardTitle>Pending Requests</CardTitle>
-                <CardDescription>Requests awaiting review and assignment</CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  Grievance Requests
+                  {requestsData?.pagination && (
+                    <span className="text-sm font-normal text-gray-500">
+                      ({requestsData.pagination.total} total)
+                    </span>
+                  )}
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 {requestsLoading ? (
-                  <div className="flex items-center justify-center py-8">
+                  <div className="flex justify-center py-8">
                     <Loader2 className="w-8 h-8 animate-spin" />
                   </div>
                 ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Request ID</TableHead>
+                        <TableHead>Reference</TableHead>
                         <TableHead>Title</TableHead>
                         <TableHead>Requester</TableHead>
-                        <TableHead>Location</TableHead>
-                        <TableHead>Type</TableHead>
                         <TableHead>Priority</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Assigned To</TableHead>
                         <TableHead>Created</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {requestsData?.data?.map((request: any) => (
+                      {requestsData?.grievances?.map((request: any) => (
                         <TableRow key={request.id}>
-                          <TableCell className="font-medium">{request.id}</TableCell>
-                          <TableCell className="max-w-xs truncate">{request.title}</TableCell>
-                          <TableCell>{request.requester_name}</TableCell>
+                          <TableCell className="font-mono text-sm">
+                            {request.referenceNumber}
+                          </TableCell>
+                          <TableCell className="max-w-xs truncate">
+                            {request.title}
+                          </TableCell>
                           <TableCell>
-                            <div className="flex items-center space-x-1">
-                              <MapPin className="w-3 h-3 text-gray-400" />
-                              <span className="text-sm truncate max-w-[100px]">{request.requester_address}</span>
+                            <div>
+                              <div className="font-medium">{request.requesterName}</div>
+                              <div className="text-sm text-gray-500">{request.requesterPhone}</div>
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline">{request.type}</Badge>
+                            <Badge className={getPriorityColor(request.priority)}>
+                              {request.priority}
+                            </Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge className={getPriorityColor(request.priority)}>{request.priority}</Badge>
+                            <Badge variant="outline">
+                              {request.status.replace('_', ' ')}
+                            </Badge>
                           </TableCell>
-                          <TableCell>{new Date(request.created_at).toLocaleDateString()}</TableCell>
                           <TableCell>
-                            <div className="flex space-x-2">
-                              <Select onValueChange={(value: string) => handleAssignRequest(request.id, value)}>
-                                <SelectTrigger className="w-[100px]">
-                                  <SelectValue placeholder="Assign" />
+                            {request.assignedTo ? (
+                              <div className="flex items-center gap-2">
+                                <UserCheck className="w-4 h-4" />
+                                <span className="text-sm">{request.assignedTo.name}</span>
+                              </div>
+                            ) : (
+                              <Select
+                                onValueChange={(value) => handleAssignRequest(request.id, value)}
+                              >
+                                <SelectTrigger className="w-[150px]">
+                                  <SelectValue placeholder="Assign to..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {fieldTeam.map((member: { id: string, name: string }) => (
-                                    <SelectItem key={member.id} value={member.id}>
-                                      {member.name}
+                                  {fieldTeam.map((user: any) => (
+                                    <SelectItem key={user.id} value={user.id}>
+                                      {user.name}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
-                              <Button size="sm" variant="ghost">
-                                <Phone className="w-4 h-4" />
-                              </Button>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1 text-sm text-gray-500">
+                              <Calendar className="w-3 h-3" />
+                              {new Date(request.createdAt).toLocaleDateString()}
                             </div>
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => router.push(`/dashboard/grievances/${request.id}`)}
+                            >
+                              View Details
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -405,67 +420,81 @@ export default function PaDashboard() {
             </Card>
           </TabsContent>
 
-          {/* WhatsApp Tab */}
+          {/* WhatsApp Messages Tab */}
           <TabsContent value="whatsapp">
-            <Card className="professional-card">
+            <Card>
               <CardHeader>
-                <CardTitle>WhatsApp Message Queue</CardTitle>
-                <CardDescription>Messages awaiting review and conversion to requests</CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5" />
+                  Pending WhatsApp Messages
+                  {whatsappMessages && (
+                    <span className="text-sm font-normal text-gray-500">
+                      ({whatsappMessages.length} pending)
+                    </span>
+                  )}
+                </CardTitle>
+                <CardDescription>
+                  Review and approve WhatsApp messages to convert them into grievance requests
+                </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent>
                 {whatsappLoading ? (
-                  <div className="flex items-center justify-center py-8">
+                  <div className="flex justify-center py-8">
                     <Loader2 className="w-8 h-8 animate-spin" />
                   </div>
-                ) : !whatsappMessages?.length ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <MessageSquare className="mx-auto h-8 w-8 mb-2" />
-                    <p>No WhatsApp messages in queue</p>
+                ) : whatsappMessages && whatsappMessages.length > 0 ? (
+                  <div className="space-y-4">
+                    {whatsappMessages.map((message: any) => (
+                      <Card key={message.id} className="border-l-4 border-l-blue-500">
+                        <CardContent className="p-4">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Phone className="w-4 h-4 text-gray-500" />
+                                <span className="font-medium">{message.phone}</span>
+                                <span className="text-sm text-gray-500">
+                                  {new Date(message.created_at).toLocaleString()}
+                                </span>
+                              </div>
+                              <p className="text-gray-700 mb-3">{message.raw_text}</p>
+                            </div>
+                            <div className="flex gap-2 ml-4">
+                              <Button
+                                size="sm"
+                                onClick={() => handleApproveWhatsApp(message.id, message)}
+                                disabled={approveWhatsAppMessage.isPending}
+                              >
+                                {approveWhatsAppMessage.isPending ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <CheckCircle className="w-4 h-4" />
+                                )}
+                                Approve
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                              >
+                                <XCircle className="w-4 h-4" />
+                                Reject
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
                   </div>
                 ) : (
-                  whatsappMessages?.map((message: any) => ( 
-                    <Card key={message.id} className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-2">
-                          <p className="font-medium">{message.phone}</p>
-                          <p className="text-sm text-gray-600">{message.raw_text}</p>
-                          <div className="flex items-center space-x-2 text-sm text-gray-500">
-                            <Calendar className="w-4 h-4" />
-                            <span>{new Date(message.created_at).toLocaleString()}</span>
-                          </div>
-                        </div>
-                        <Button onClick={() => handleApproveWhatsApp(message.id, message)}>
-                          Convert to Request
-                        </Button>
-                      </div>
-                    </Card>
-                  ))
+                  <div className="text-center py-8 text-gray-500">
+                    <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>No pending WhatsApp messages</p>
+                  </div>
                 )}
               </CardContent>
             </Card>
           </TabsContent>
-
-          <TabsContent value="team" className="space-y-6">
-            <Card className="professional-card">
-              <CardHeader>
-                <CardTitle>Field Team Management</CardTitle>
-                <CardDescription>Assign and manage field team tasks</CardDescription>
-              </CardHeader>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="reports" className="space-y-6">
-            <Card className="professional-card">
-              <CardHeader>
-                <CardTitle>Operational Reports</CardTitle>
-                <CardDescription>View and generate reports</CardDescription>
-              </CardHeader>
-            </Card>
-          </TabsContent>
-        </Tabs>
-        </TabsContent>
         </Tabs>
       </div>
     </div>
-  );
+  )
 }

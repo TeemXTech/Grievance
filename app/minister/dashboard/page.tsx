@@ -1,701 +1,376 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useState, useEffect } from "react"
+import { useSession } from "next-auth/react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Progress } from "@/components/ui/progress"
-import { 
-  Phone, 
-  MessageCircle, 
-  MapPin, 
-  Users, 
-  FileText, 
-  TrendingUp, 
-  AlertTriangle,
-  Download,
-  Printer,
-  Eye,
-  Filter,
-  Search,
-  Calendar,
-  Clock,
-  CheckCircle,
-  XCircle,
-  UserCheck,
-  IndianRupee
-} from "lucide-react"
 import { GovernmentHeader } from "@/components/ui/government-header"
-
-// Declare Leaflet types for TypeScript
-declare global {
-  interface Window {
-    L: any
-  }
-}
-
-interface ConstituencyData {
-  id: string
-  name: string
-  district: string
-  totalGrievances: number
-  pending: number
-  resolved: number
-  inProgress: number
-  totalCost: number
-  resolutionRate: number
-}
-
-interface OfficerData {
-  id: string
-  name: string
-  role: string
-  phone: string
-  email: string
-  assignedGrievances: number
-  resolvedGrievances: number
-  constituency: string
-}
-
-interface CasteData {
-  category: string
-  grievanceCount: number
-  fundAmount: number
-  percentage: number
-}
-
-interface VillageData {
-  id: string
-  name: string
-  mandal: string
-  district: string
-  grievanceCount: number
-  pending: number
-  resolved: number
-  latitude: number
-  longitude: number
-}
-
-interface MapState {
-  selectedConstituency: string
-  selectedMandal: string
-  selectedVillage: string
-  zoomLevel: number
-  center: [number, number]
-}
+import { BarChart, Users, MapPin, Clock, TrendingUp, Phone, Calendar, Filter } from "lucide-react"
 
 export default function MinisterDashboard() {
-  const mapRef = useRef<HTMLDivElement>(null)
-  const mapInstanceRef = useRef<any>(null)
-  const [selectedConstituency, setSelectedConstituency] = useState<string>("")
-  const [mapState, setMapState] = useState<MapState>({
-    selectedConstituency: "",
-    selectedMandal: "",
-    selectedVillage: "",
-    zoomLevel: 7,
-    center: [17.3850, 78.4867]
-  })
-  const [isLoading, setIsLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState("overview")
+  const { data: session } = useSession()
+  const [selectedDistrict, setSelectedDistrict] = useState("all")
+  const [selectedVillage, setSelectedVillage] = useState("all")
+  const [selectedCategory, setSelectedCategory] = useState("all")
+  const [analytics, setAnalytics] = useState<any>({})
+  const [grievances, setGrievances] = useState([])
+  const [villageLeaders, setVillageLeaders] = useState([])
 
-  // Sample data - in real app, this would come from API
-  const constituencies: ConstituencyData[] = [
-    {
-      id: "hyd-1",
-      name: "Hyderabad Central",
-      district: "Hyderabad",
-      totalGrievances: 1247,
-      pending: 156,
-      resolved: 892,
-      inProgress: 89,
-      totalCost: 15000000,
-      resolutionRate: 71.5
-    },
-    {
-      id: "hyd-2", 
-      name: "Hyderabad North",
-      district: "Hyderabad",
-      totalGrievances: 856,
-      pending: 98,
-      resolved: 623,
-      inProgress: 67,
-      totalCost: 9800000,
-      resolutionRate: 72.8
-    },
-    {
-      id: "war-1",
-      name: "Warangal East",
-      district: "Warangal", 
-      totalGrievances: 723,
-      pending: 87,
-      resolved: 534,
-      inProgress: 45,
-      totalCost: 8200000,
-      resolutionRate: 73.9
+  const loadAnalytics = async () => {
+    try {
+      const params = new URLSearchParams({
+        district: selectedDistrict,
+        village: selectedVillage,
+        category: selectedCategory
+      })
+      const response = await fetch(`/api/minister/analytics?${params}`)
+      const data = await response.json()
+      setAnalytics(data)
+      setGrievances(data.grievances || [])
+      setVillageLeaders(data.leaders || [])
+    } catch (error) {
+      console.error("Failed to load analytics:", error)
     }
-  ]
-
-  const officers: OfficerData[] = [
-    {
-      id: "1",
-      name: "Rajesh Kumar",
-      role: "Field Officer",
-      phone: "+91-9876543210",
-      email: "rajesh.kumar@telangana.gov.in",
-      assignedGrievances: 45,
-      resolvedGrievances: 38,
-      constituency: "Hyderabad Central"
-    },
-    {
-      id: "2",
-      name: "Priya Sharma",
-      role: "Assistant Commissioner",
-      phone: "+91-9876543211", 
-      email: "priya.sharma@telangana.gov.in",
-      assignedGrievances: 32,
-      resolvedGrievances: 28,
-      constituency: "Hyderabad Central"
-    },
-    {
-      id: "3",
-      name: "Amit Patel",
-      role: "Deputy Collector",
-      phone: "+91-9876543212",
-      email: "amit.patel@telangana.gov.in", 
-      assignedGrievances: 28,
-      resolvedGrievances: 25,
-      constituency: "Hyderabad North"
-    }
-  ]
-
-  const casteData: CasteData[] = [
-    { category: "SC", grievanceCount: 234, fundAmount: 3500000, percentage: 18.8 },
-    { category: "ST", grievanceCount: 156, fundAmount: 2800000, percentage: 12.5 },
-    { category: "OBC", grievanceCount: 445, fundAmount: 6200000, percentage: 35.7 },
-    { category: "General", grievanceCount: 412, fundAmount: 2500000, percentage: 33.0 }
-  ]
-
-  const villages: VillageData[] = [
-    {
-      id: "1",
-      name: "Hyderabad Village",
-      mandal: "Secunderabad",
-      district: "Hyderabad",
-      grievanceCount: 45,
-      pending: 5,
-      resolved: 38,
-      latitude: 17.3850,
-      longitude: 78.4867
-    },
-    {
-      id: "2", 
-      name: "Warangal Village",
-      mandal: "Warangal",
-      district: "Warangal",
-      grievanceCount: 32,
-      pending: 3,
-      resolved: 28,
-      latitude: 17.9689,
-      longitude: 79.5941
-    }
-  ]
+  }
 
   useEffect(() => {
-    if (selectedConstituency) {
-      initializeMap()
-    }
-  }, [selectedConstituency])
+    loadAnalytics()
+  }, [selectedDistrict, selectedVillage, selectedCategory])
 
-  const initializeMap = async () => {
-    if (!mapRef.current) return
-
-    // Load Leaflet CSS and JS
-    if (!window.L) {
-      const link = document.createElement('link')
-      link.rel = 'stylesheet'
-      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
-      link.integrity = 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY='
-      link.crossOrigin = ''
-      document.head.appendChild(link)
-
-      const script = document.createElement('script')
-      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
-      script.integrity = 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo='
-      script.crossOrigin = ''
-      script.onload = () => createMap()
-      document.head.appendChild(script)
-    } else {
-      createMap()
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "RESOLVED": return "bg-green-100 text-green-800"
+      case "IN_PROGRESS": return "bg-blue-100 text-blue-800"
+      case "PENDING": return "bg-orange-100 text-orange-800"
+      default: return "bg-gray-100 text-gray-800"
     }
   }
 
-  const createMap = () => {
-    if (!mapRef.current || !window.L) return
-
-    // Clear existing map
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.remove()
-    }
-
-    // Initialize map
-    const map = window.L.map(mapRef.current).setView([17.3850, 78.4867], 8)
-    mapInstanceRef.current = map
-
-    // Add OpenStreetMap tiles
-    window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors'
-    }).addTo(map)
-
-    // Add village markers
-    villages.forEach(village => {
-      const marker = window.L.circleMarker([village.latitude, village.longitude], {
-        radius: Math.max(8, village.grievanceCount / 5),
-        fillColor: getColorByGrievanceCount(village.grievanceCount),
-        color: '#fff',
-        weight: 2,
-        opacity: 1,
-        fillOpacity: 0.8
-      }).addTo(map)
-
-      marker.bindTooltip(`
-        <div class="p-2">
-          <h3 class="font-bold text-lg">${village.name}</h3>
-          <p class="text-sm text-gray-600">${village.mandal}, ${village.district}</p>
-          <div class="mt-2 space-y-1">
-            <div class="flex justify-between">
-              <span>Total Grievances:</span>
-              <span class="font-semibold">${village.grievanceCount}</span>
-            </div>
-            <div class="flex justify-between">
-              <span>Pending:</span>
-              <span class="text-orange-600">${village.pending}</span>
-            </div>
-            <div class="flex justify-between">
-              <span>Resolved:</span>
-              <span class="text-green-600">${village.resolved}</span>
-            </div>
-          </div>
-        </div>
-      `, {
-        className: 'custom-tooltip',
-        sticky: true
-      })
-
-      marker.on('click', () => {
-        setMapState(prev => ({
-          ...prev,
-          selectedVillage: village.name
-        }))
-      })
-    })
-
-    setIsLoading(false)
+  const calculateDays = (startDate: string, endDate?: string) => {
+    const start = new Date(startDate)
+    const end = endDate ? new Date(endDate) : new Date()
+    return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
   }
-
-  const getColorByGrievanceCount = (count: number) => {
-    if (count > 40) return '#dc2626' // Red
-    if (count > 30) return '#ea580c' // Orange
-    if (count > 20) return '#d97706' // Amber
-    if (count > 10) return '#65a30d' // Green
-    return '#059669' // Emerald
-  }
-
-  const handlePhoneCall = (phone: string) => {
-    window.open(`tel:${phone}`, '_self')
-  }
-
-  const handleWhatsApp = (phone: string, name: string) => {
-    const message = `Hello ${name}, I am calling regarding the grievance management system.`
-    const whatsappUrl = `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`
-    window.open(whatsappUrl, '_blank')
-  }
-
-  const handlePrintReport = () => {
-    window.print()
-  }
-
-  const handleExportPDF = () => {
-    // In real app, this would call an API to generate PDF
-    alert('PDF export functionality would be implemented here')
-  }
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 1
-    }).format(amount / 1000000) + 'M'
-  }
-
-  const selectedConstituencyData = constituencies.find(c => c.id === selectedConstituency)
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <GovernmentHeader />
-      
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Minister Dashboard</h1>
-            <p className="text-gray-600">Constituency-wise grievance management overview</p>
-          </div>
-          <div className="flex space-x-2">
-            <Button variant="outline" size="sm" onClick={handlePrintReport}>
-              <Printer className="h-4 w-4 mr-2" />
-              Print Report
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleExportPDF}>
-              <Download className="h-4 w-4 mr-2" />
-              Export PDF
-            </Button>
-          </div>
-        </div>
+      <GovernmentHeader
+        title="Minister Dashboard"
+        description="Comprehensive Analytics & Village Insights"
+        userName={session?.user?.name}
+        userRole={session?.user?.role}
+      />
 
-        {/* Constituency Selector */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Filters */}
         <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <MapPin className="h-5 w-5 mr-2" />
-              Select Constituency
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Select value={selectedConstituency} onValueChange={setSelectedConstituency}>
-              <SelectTrigger className="w-full max-w-md">
-                <SelectValue placeholder="Choose your constituency" />
-              </SelectTrigger>
-              <SelectContent>
-                {constituencies.map((constituency) => (
-                  <SelectItem key={constituency.id} value={constituency.id}>
-                    {constituency.name} - {constituency.district}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <CardContent className="p-6">
+            <div className="grid grid-cols-4 gap-4">
+              <Select value={selectedDistrict} onValueChange={setSelectedDistrict}>
+                <SelectTrigger>
+                  <MapPin className="w-4 h-4 mr-2" />
+                  <SelectValue placeholder="Select District" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Districts</SelectItem>
+                  <SelectItem value="Hyderabad">Hyderabad</SelectItem>
+                  <SelectItem value="Warangal">Warangal</SelectItem>
+                  <SelectItem value="Nizamabad">Nizamabad</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={selectedVillage} onValueChange={setSelectedVillage}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Village" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Villages</SelectItem>
+                  <SelectItem value="Kondapur">Kondapur</SelectItem>
+                  <SelectItem value="Gachibowli">Gachibowli</SelectItem>
+                  <SelectItem value="Madhapur">Madhapur</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger>
+                  <Filter className="w-4 h-4 mr-2" />
+                  <SelectValue placeholder="Select Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  <SelectItem value="health">Health</SelectItem>
+                  <SelectItem value="infrastructure">Infrastructure</SelectItem>
+                  <SelectItem value="education">Education</SelectItem>
+                  <SelectItem value="employment">Employment</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Button onClick={loadAnalytics} className="w-full">
+                <TrendingUp className="w-4 h-4 mr-2" />
+                Refresh Data
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
-        {selectedConstituencyData && (
-          <>
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        {/* Key Metrics */}
+        <div className="grid grid-cols-4 gap-6 mb-8">
+          <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-100">Total Grievances</p>
+                  <p className="text-3xl font-bold">{analytics.totalGrievances || 0}</p>
+                </div>
+                <BarChart className="w-8 h-8 text-blue-200" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-green-100">Resolved</p>
+                  <p className="text-3xl font-bold">{analytics.resolvedGrievances || 0}</p>
+                  <p className="text-sm text-green-100">
+                    {analytics.totalGrievances ? Math.round((analytics.resolvedGrievances / analytics.totalGrievances) * 100) : 0}% Success Rate
+                  </p>
+                </div>
+                <Users className="w-8 h-8 text-green-200" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-r from-orange-500 to-orange-600 text-white">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-orange-100">Avg Resolution</p>
+                  <p className="text-3xl font-bold">{analytics.avgResolutionDays || 0}</p>
+                  <p className="text-sm text-orange-100">Days</p>
+                </div>
+                <Clock className="w-8 h-8 text-orange-200" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-purple-100">Total Spent</p>
+                  <p className="text-3xl font-bold">₹{(analytics.totalSpent || 0).toLocaleString()}</p>
+                  <p className="text-sm text-purple-100">Lakhs</p>
+                </div>
+                <TrendingUp className="w-8 h-8 text-purple-200" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Tabs defaultValue="grievances" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="grievances">Grievances Detail</TabsTrigger>
+            <TabsTrigger value="village">Village Summary</TabsTrigger>
+            <TabsTrigger value="leaders">Key People</TabsTrigger>
+            <TabsTrigger value="projects">Projects</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="grievances">
+            <Card>
+              <CardHeader>
+                <CardTitle>Detailed Grievances Analysis</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Reference</TableHead>
+                      <TableHead>Requester</TableHead>
+                      <TableHead>Issue Summary</TableHead>
+                      <TableHead>Village</TableHead>
+                      <TableHead>Responder</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Days</TableHead>
+                      <TableHead>Category</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {grievances.map((grievance: any) => (
+                      <TableRow key={grievance.id}>
+                        <TableCell className="font-mono text-sm">{grievance.referenceNumber}</TableCell>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{grievance.patientName}</div>
+                            <div className="text-sm text-gray-500 flex items-center">
+                              <Phone className="w-3 h-3 mr-1" />
+                              {grievance.patientPhone}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="max-w-xs">
+                          <div className="truncate" title={grievance.issue}>
+                            {grievance.issue?.substring(0, 50)}...
+                          </div>
+                        </TableCell>
+                        <TableCell>{grievance.village || "N/A"}</TableCell>
+                        <TableCell>{grievance.assignedTo?.name || "Unassigned"}</TableCell>
+                        <TableCell>
+                          <Badge className={getStatusColor(grievance.status)}>
+                            {grievance.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center">
+                            <Calendar className="w-3 h-3 mr-1" />
+                            {calculateDays(grievance.createdAt, grievance.updatedAt)}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">Health</Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="village">
+            <div className="grid grid-cols-2 gap-6">
               <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Total Grievances</p>
-                      <p className="text-2xl font-bold text-gray-900">{selectedConstituencyData.totalGrievances}</p>
+                <CardHeader>
+                  <CardTitle>Village Statistics</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex justify-between">
+                      <span>Population:</span>
+                      <span className="font-bold">25,000</span>
                     </div>
-                    <FileText className="h-8 w-8 text-blue-600" />
+                    <div className="flex justify-between">
+                      <span>Households:</span>
+                      <span className="font-bold">5,200</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Literacy Rate:</span>
+                      <span className="font-bold">78%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Employment Rate:</span>
+                      <span className="font-bold">65%</span>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
 
               <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Resolution Rate</p>
-                      <p className="text-2xl font-bold text-green-600">{selectedConstituencyData.resolutionRate}%</p>
+                <CardHeader>
+                  <CardTitle>Recent Achievements</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="p-3 bg-green-50 rounded">
+                      <div className="font-medium text-green-800">Road Construction</div>
+                      <div className="text-sm text-green-600">5km road completed - ₹2.5 Cr</div>
                     </div>
-                    <CheckCircle className="h-8 w-8 text-green-600" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Pending Issues</p>
-                      <p className="text-2xl font-bold text-orange-600">{selectedConstituencyData.pending}</p>
+                    <div className="p-3 bg-blue-50 rounded">
+                      <div className="font-medium text-blue-800">School Building</div>
+                      <div className="text-sm text-blue-600">New primary school - ₹1.2 Cr</div>
                     </div>
-                    <AlertTriangle className="h-8 w-8 text-orange-600" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Total Cost</p>
-                      <p className="text-2xl font-bold text-gray-900">{formatCurrency(selectedConstituencyData.totalCost)}</p>
+                    <div className="p-3 bg-purple-50 rounded">
+                      <div className="font-medium text-purple-800">Water Supply</div>
+                      <div className="text-sm text-purple-600">Bore wells installed - ₹80 L</div>
                     </div>
-                    <IndianRupee className="h-8 w-8 text-purple-600" />
                   </div>
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
 
-            {/* Main Content Tabs */}
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-              <TabsList className="grid w-full grid-cols-5">
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="map">Geospatial Map</TabsTrigger>
-                <TabsTrigger value="caste">Caste-wise Analysis</TabsTrigger>
-                <TabsTrigger value="officers">Officers</TabsTrigger>
-                <TabsTrigger value="reports">Reports</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="overview" className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Status Distribution */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Grievance Status Distribution</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-2">
-                            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                            <span className="text-sm font-medium">Resolved</span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Progress 
-                              value={(selectedConstituencyData.resolved / selectedConstituencyData.totalGrievances) * 100} 
-                              className="w-20"
-                            />
-                            <span className="text-sm font-semibold">{selectedConstituencyData.resolved}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-2">
-                            <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                            <span className="text-sm font-medium">In Progress</span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Progress 
-                              value={(selectedConstituencyData.inProgress / selectedConstituencyData.totalGrievances) * 100} 
-                              className="w-20"
-                            />
-                            <span className="text-sm font-semibold">{selectedConstituencyData.inProgress}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-2">
-                            <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-                            <span className="text-sm font-medium">Pending</span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Progress 
-                              value={(selectedConstituencyData.pending / selectedConstituencyData.totalGrievances) * 100} 
-                              className="w-20"
-                            />
-                            <span className="text-sm font-semibold">{selectedConstituencyData.pending}</span>
-                          </div>
-                        </div>
+          <TabsContent value="leaders">
+            <Card>
+              <CardHeader>
+                <CardTitle>Key People & Leaders</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-3 gap-4">
+                  {[
+                    { name: "Sarpanch Ramesh", role: "Village Head", phone: "+91 9876543210", issues: 12 },
+                    { name: "Dr. Priya Sharma", role: "PHC Doctor", phone: "+91 9876543211", issues: 8 },
+                    { name: "Teacher Suresh", role: "School Principal", phone: "+91 9876543212", issues: 5 },
+                    { name: "Farmer Krishnan", role: "Farmer Leader", phone: "+91 9876543213", issues: 15 },
+                    { name: "SHG President Lakshmi", role: "Women's Group", phone: "+91 9876543214", issues: 7 },
+                    { name: "Youth Leader Arjun", role: "Youth Association", phone: "+91 9876543215", issues: 9 }
+                  ].map((leader, index) => (
+                    <Card key={index} className="p-4">
+                      <div className="font-medium">{leader.name}</div>
+                      <div className="text-sm text-gray-600">{leader.role}</div>
+                      <div className="text-sm text-gray-500 flex items-center mt-1">
+                        <Phone className="w-3 h-3 mr-1" />
+                        {leader.phone}
                       </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Recent Activity */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Recent Critical Grievances</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        {[1, 2, 3].map((i) => (
-                          <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
-                            <div>
-                              <h4 className="font-medium">Road Repair - Main Street</h4>
-                              <p className="text-sm text-gray-600">Hyderabad Village, Secunderabad</p>
-                            </div>
-                            <Badge variant="destructive">URGENT</Badge>
-                          </div>
-                        ))}
+                      <div className="text-sm text-blue-600 mt-2">
+                        {leader.issues} issues raised
                       </div>
-                    </CardContent>
-                  </Card>
+                    </Card>
+                  ))}
                 </div>
-              </TabsContent>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-              <TabsContent value="map" className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Interactive Geospatial Heatmap</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <div 
-                      ref={mapRef} 
-                      className="w-full h-[600px] relative"
-                      style={{ minHeight: '600px' }}
-                    >
-                      {isLoading && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 bg-opacity-75 z-10">
-                          <div className="text-center">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                            <p className="text-gray-600">Loading map data...</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="caste" className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Caste-wise Fund Distribution</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {casteData.map((caste) => (
-                        <div key={caste.category} className="flex items-center justify-between p-4 border rounded-lg">
-                          <div>
-                            <h4 className="font-medium">{caste.category}</h4>
-                            <p className="text-sm text-gray-600">{caste.grievanceCount} grievances</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-semibold">{formatCurrency(caste.fundAmount)}</p>
-                            <p className="text-sm text-gray-600">{caste.percentage}% of total</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="officers" className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Assigned Officers & Contact Details</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Officer Name</TableHead>
-                          <TableHead>Role</TableHead>
-                          <TableHead>Constituency</TableHead>
-                          <TableHead>Assigned</TableHead>
-                          <TableHead>Resolved</TableHead>
-                          <TableHead>Contact</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {officers.map((officer) => (
-                          <TableRow key={officer.id}>
-                            <TableCell className="font-medium">{officer.name}</TableCell>
-                            <TableCell>{officer.role}</TableCell>
-                            <TableCell>{officer.constituency}</TableCell>
-                            <TableCell>{officer.assignedGrievances}</TableCell>
-                            <TableCell>{officer.resolvedGrievances}</TableCell>
-                            <TableCell>
-                              <div className="flex space-x-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handlePhoneCall(officer.phone)}
-                                  className="h-8 w-8 p-0"
-                                >
-                                  <Phone className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleWhatsApp(officer.phone, officer.name)}
-                                  className="h-8 w-8 p-0"
-                                >
-                                  <MessageCircle className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="reports" className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Pre-Visit Summary Report</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                          <h4 className="font-semibold mb-2">Constituency Summary</h4>
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                              <span>Constituency:</span>
-                              <span className="font-medium">{selectedConstituencyData.name}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>District:</span>
-                              <span className="font-medium">{selectedConstituencyData.district}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>Total Grievances:</span>
-                              <span className="font-medium">{selectedConstituencyData.totalGrievances}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>Resolution Rate:</span>
-                              <span className="font-medium">{selectedConstituencyData.resolutionRate}%</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div>
-                          <h4 className="font-semibold mb-2">Critical Issues</h4>
-                          <div className="space-y-2">
-                            <Badge variant="destructive" className="mr-2">15 URGENT</Badge>
-                            <Badge variant="secondary" className="mr-2">23 HIGH</Badge>
-                            <Badge variant="outline">8 OVERDUE</Badge>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="pt-4 border-t">
-                        <Button onClick={handleExportPDF} className="w-full">
-                          <Download className="h-4 w-4 mr-2" />
-                          Generate Bilingual PDF Report
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
-          </>
-        )}
+          <TabsContent value="projects">
+            <Card>
+              <CardHeader>
+                <CardTitle>Government Projects</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Project Name</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Budget</TableHead>
+                      <TableHead>Spent</TableHead>
+                      <TableHead>Beneficiaries</TableHead>
+                      <TableHead>Completion</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {[
+                      { name: "Village Road Development", status: "COMPLETED", budget: 250, spent: 245, beneficiaries: 5000, completion: "100%" },
+                      { name: "Primary School Building", status: "IN_PROGRESS", budget: 120, spent: 85, beneficiaries: 300, completion: "70%" },
+                      { name: "Water Supply System", status: "COMPLETED", budget: 80, spent: 78, beneficiaries: 2500, completion: "100%" },
+                      { name: "Community Health Center", status: "YET_TO_COMPLETE", budget: 200, spent: 0, beneficiaries: 8000, completion: "0%" }
+                    ].map((project, index) => (
+                      <TableRow key={index}>
+                        <TableCell className="font-medium">{project.name}</TableCell>
+                        <TableCell>
+                          <Badge className={getStatusColor(project.status)}>
+                            {project.status.replace('_', ' ')}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>₹{project.budget}L</TableCell>
+                        <TableCell>₹{project.spent}L</TableCell>
+                        <TableCell>{project.beneficiaries.toLocaleString()}</TableCell>
+                        <TableCell>{project.completion}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
-
-      {/* Custom CSS for tooltips */}
-      <style jsx global>{`
-        .custom-tooltip {
-          background: white;
-          border: 1px solid #e5e7eb;
-          border-radius: 8px;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-          padding: 0;
-          font-family: inherit;
-        }
-        
-        .custom-tooltip::before {
-          border-top-color: #e5e7eb;
-        }
-        
-        .leaflet-container {
-          font-family: inherit;
-        }
-        
-        @media print {
-          .no-print {
-            display: none !important;
-          }
-        }
-      `}</style>
     </div>
   )
 }
