@@ -4,8 +4,10 @@
   "private": true,
   "scripts": {
     "prepare:db": "node scripts/ensure-db.cjs && prisma migrate deploy || prisma db push",
-    "seed": "node prisma/seed.js",
+    "seed": "node prisma/seed-demo.js",
     "seed:realistic": "tsx prisma/seed-realistic.ts",
+    "uat:setup": "node scripts/uat-setup.js",
+    "uat:reset": "npx prisma db push --force-reset && npm run uat:setup",
     "dev": "npm run prepare:db && npm run seed && next dev",
     "build": "next build",
     "start": "next start",

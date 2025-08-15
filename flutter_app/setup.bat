@@ -1,0 +1,16 @@
+@echo off
+echo Setting up Flutter app...
+
+echo Checking Flutter installation...
+flutter doctor
+
+echo Getting dependencies...
+flutter pub get
+
+echo Enabling Windows desktop...
+flutter config --enable-windows-desktop
+
+echo Running app on Windows...
+flutter run -d windows
+
+pause

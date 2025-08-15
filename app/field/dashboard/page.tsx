@@ -28,7 +28,7 @@ type Task = {
 
 export default function FieldOfficerDashboard() {
   const [assignedTasks, setAssignedTasks] = useState<Task[]>([]);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [editingTask, setEditingTask] = useState<string | null>(null);
   const [statusUpdate, setStatusUpdate] = useState("");
   const [newStatus, setNewStatus] = useState<TaskStatus>("");
   const [loading, setLoading] = useState(true);
@@ -49,10 +49,9 @@ export default function FieldOfficerDashboard() {
     }
   };
 
-  const updateTaskStatus = async () => {
-    if (!selectedTask || !newStatus) return;
+  const updateTaskStatus = async (taskId: string) => {
+    if (!newStatus) return;
     try {
-      // File upload logic (if needed)
       let uploadedUrls: string[] = [];
       if (uploadFiles.length > 0) {
         const formData = new FormData();
@@ -69,14 +68,13 @@ export default function FieldOfficerDashboard() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          taskId: selectedTask.id,
+          taskId,
           status: newStatus,
           remarks: statusUpdate,
-          type: selectedTask.type,
           attachments: uploadedUrls
         })
       });
-      setSelectedTask(null);
+      setEditingTask(null);
       setStatusUpdate("");
       setNewStatus("");
       setUploadFiles([]);
@@ -176,42 +174,45 @@ export default function FieldOfficerDashboard() {
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Tasks List */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Assigned Tasks</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
+        <Card>
+          <CardHeader>
+            <CardTitle>Assigned Tasks</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Reference</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Issue/Project</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
                   <TableRow>
-                    <TableHead>Reference</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Action</TableHead>
+                    <TableCell colSpan={6} className="text-center py-8">
+                      Loading tasks...
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loading ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8">
-                        Loading tasks...
-                      </TableCell>
-                    </TableRow>
-                  ) : assignedTasks.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-gray-500">
-                        No tasks assigned
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    assignedTasks.map((task) => (
+                ) : assignedTasks.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                      No tasks assigned
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  assignedTasks.map((task) => (
+                    <>
                       <TableRow key={task.id}>
                         <TableCell className="font-mono text-sm">{task.referenceNumber || 'N/A'}</TableCell>
                         <TableCell>
                           <Badge variant="outline">{task.type || 'Unknown'}</Badge>
+                        </TableCell>
+                        <TableCell className="max-w-xs truncate">
+                          {task.issue || task.projectName || task.title || 'N/A'}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center">
@@ -227,114 +228,98 @@ export default function FieldOfficerDashboard() {
                         <TableCell>
                           <Button
                             size="sm"
-                            onClick={() => setSelectedTask(task)}
+                            onClick={() => setEditingTask(editingTask === task.id ? null : task.id)}
                             disabled={task.status === "RESOLVED"}
-                            aria-label={`Update status for task ${task.referenceNumber || task.id}`}
                           >
-                            Update
+                            {editingTask === task.id ? 'Cancel' : 'Update'}
                           </Button>
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-
-          {/* Update Panel */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Update Task Status</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {selectedTask ? (
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="font-medium">Task Details</h3>
-                    <p className="text-sm text-gray-600">Reference: {selectedTask.referenceNumber || 'N/A'}</p>
-                    <p className="text-sm text-gray-600">
-                      {selectedTask.type === "grievance" ? "Issue" : "Project"}: {selectedTask.issue || selectedTask.projectName || selectedTask.title || 'N/A'}
-                    </p>
-                    <p className="text-sm text-gray-600">Requester: {selectedTask.patientName || selectedTask.ministerName || selectedTask.requesterName || 'N/A'}</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-2" htmlFor="new-status">New Status</label>
-                    <Select value={newStatus} onValueChange={setNewStatus}>
-                      <SelectTrigger id="new-status">
-                        <SelectValue placeholder="Select new status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-                        <SelectItem value="RESOLVED">Resolved</SelectItem>
-                        <SelectItem value="PENDING">Pending</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-2" htmlFor="status-update">Status Update / Remarks</label>
-                    <Textarea
-                      id="status-update"
-                      value={statusUpdate}
-                      onChange={(e) => setStatusUpdate(e.target.value)}
-                      placeholder="Enter status update, progress notes, or completion remarks..."
-                      rows={4}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-2" htmlFor="upload-photos">Upload Photos (Optional)</label>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer" tabIndex={0} aria-label="Upload photos">
-                      <Camera className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                      <p className="text-sm text-gray-600">Click or drag to upload photos</p>
-                      <input
-                        id="upload-photos"
-                        type="file"
-                        multiple
-                        accept="image/*"
-                        className="sr-only"
-                        onChange={e => {
-                          if (e.target.files) {
-                            setUploadFiles(Array.from(e.target.files));
-                          }
-                        }}
-                        aria-label="Upload photos"
-                      />
-                      {uploadFiles.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-2 justify-center">
-                          {uploadFiles.map((file, idx) => (
-                            <span key={idx} className="text-xs bg-gray-100 rounded px-2 py-1">{file.name}</span>
-                          ))}
-                        </div>
+                      {editingTask === task.id && (
+                        <TableRow>
+                          <TableCell colSpan={6} className="bg-gray-50 p-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium mb-2">New Status</label>
+                                <Select value={newStatus} onValueChange={setNewStatus}>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select status" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                                    <SelectItem value="RESOLVED">Resolved</SelectItem>
+                                    <SelectItem value="PENDING">Pending</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="md:col-span-2">
+                                <label className="block text-sm font-medium mb-2">Remarks</label>
+                                <Textarea
+                                  value={statusUpdate}
+                                  onChange={(e) => setStatusUpdate(e.target.value)}
+                                  placeholder="Enter update remarks..."
+                                  rows={2}
+                                />
+                              </div>
+                              <div className="md:col-span-3">
+                                <label className="block text-sm font-medium mb-2">Upload Photos</label>
+                                <div className="border-2 border-dashed border-gray-300 rounded-lg p-3 text-center">
+                                  <input
+                                    type="file"
+                                    multiple
+                                    accept="image/*"
+                                    onChange={e => {
+                                      if (e.target.files) {
+                                        setUploadFiles(Array.from(e.target.files));
+                                      }
+                                    }}
+                                    className="hidden"
+                                    id={`upload-${task.id}`}
+                                  />
+                                  <label htmlFor={`upload-${task.id}`} className="cursor-pointer">
+                                    <Camera className="w-6 h-6 mx-auto mb-1 text-gray-400" />
+                                    <p className="text-sm text-gray-600">Click to upload photos</p>
+                                  </label>
+                                  {uploadFiles.length > 0 && (
+                                    <div className="mt-2 flex flex-wrap gap-1">
+                                      {uploadFiles.map((file, idx) => (
+                                        <span key={idx} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                          {file.name}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="md:col-span-3 flex gap-2">
+                                <Button onClick={() => updateTaskStatus(task.id)} size="sm">
+                                  <Upload className="w-4 h-4 mr-1" />
+                                  Save Update
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => {
+                                    setEditingTask(null);
+                                    setStatusUpdate("");
+                                    setNewStatus("");
+                                    setUploadFiles([]);
+                                  }}
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
                       )}
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button onClick={updateTaskStatus} className="flex-1">
-                      <Upload className="w-4 h-4 mr-2" />
-                      Update Status
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => { setSelectedTask(null); setUploadFiles([]); }}
-                      className="flex-1"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <AlertCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>Select a task to update its status</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                    </>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

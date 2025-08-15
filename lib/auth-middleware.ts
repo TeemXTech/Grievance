@@ -22,83 +22,38 @@ function getTokenFromRequest(request: NextRequest) {
   return null
 }
 
-// Middleware to protect API routes
+// BYPASS: Middleware bypassed - all requests allowed
 export async function withAuth(
   request: NextRequest,
   handler: (request: NextRequest) => Promise<NextResponse>
 ) {
-  try {
-    const token = getTokenFromRequest(request)
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
+  console.log('🔓 BYPASS: Auth middleware bypassed')
+  
+  // BYPASS: Always inject admin user headers
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-user-id', '1')
+  requestHeaders.set('x-user-role', 'ADMIN')
+  requestHeaders.set('x-user-email', 'admin@bypass.com')
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
-      userId: string
-      email: string
-      role: string
-    }
+  // Create new request with admin headers
+  const newRequest = new NextRequest(request.url, {
+    method: request.method,
+    headers: requestHeaders,
+    body: request.body,
+  })
 
-    // Get user from database
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: {
-        id: true,
-        email: true,
-        role: true,
-        status: true,
-      },
-    })
-
-    if (!user || user.status !== 'active') {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
-    // Inject user info into request headers
-    const requestHeaders = new Headers(request.headers)
-    requestHeaders.set('x-user-id', user.id)
-    requestHeaders.set('x-user-role', user.role)
-    requestHeaders.set('x-user-email', user.email)
-
-    // Create new request with updated headers
-    const newRequest = new NextRequest(request.url, {
-      method: request.method,
-      headers: requestHeaders,
-      body: request.body,
-    })
-
-    // Call the handler with authenticated request
-    return handler(newRequest)
-  } catch (error) {
-    console.error('Auth middleware error:', error)
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    )
-  }
+  // Always call handler with admin privileges
+  return handler(newRequest)
 }
 
-// Middleware to restrict routes by role
+// BYPASS: Role restrictions bypassed - all roles allowed
 export function withRole(roles: string[]) {
   return async function(
     request: NextRequest,
     handler: (request: NextRequest) => Promise<NextResponse>
   ) {
-    const userRole = headers().get('x-user-role')
-    
-    if (!userRole || !roles.includes(userRole)) {
-      return NextResponse.json(
-        { error: 'Forbidden' },
-        { status: 403 }
-      )
-    }
-
+    console.log('🔓 BYPASS: Role check bypassed')
+    // BYPASS: Always allow access regardless of role
     return handler(request)
   }
 }

@@ -1,202 +1,308 @@
 "use client"
 
-import { GovernmentHeader } from "@/components/ui/government-header"
-import { GovernmentCard } from "@/components/ui/government-card"
+import { useState } from "react"
+import { signIn } from "next-auth/react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Users, FileText, MessageSquare, BarChart3, ArrowRight, Shield, Clock, CheckCircle } from "lucide-react"
-import Link from "next/link"
+import { Card, CardContent } from "@/components/ui/card"
+import { Shield, Users, FileText, BarChart3, Phone, Mail, MapPin, Clock, CheckCircle, Award } from "lucide-react"
 
 export default function HomePage() {
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [showLogin, setShowLogin] = useState(false)
+  
+  const router = useRouter()
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
+
+    console.log('🚀 Starting login process for:', email)
+
+    try {
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+        callbackUrl: "/dashboard"
+      })
+
+      console.log('📊 SignIn result:', result)
+
+      if (result?.error) {
+        console.log('❌ SignIn error:', result.error)
+        setError("Invalid email or password. Please check your credentials.")
+      } else if (result?.ok) {
+        console.log('✅ SignIn successful, redirecting...')
+        // Small delay to ensure session is set
+        setTimeout(() => {
+          router.push("/dashboard")
+        }, 100)
+      } else {
+        console.log('⚠️ Unexpected result:', result)
+        setError("Login failed. Please try again.")
+      }
+    } catch (err) {
+      console.error('💥 Login error:', err)
+      setError("Network error. Please check your connection.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <GovernmentHeader />
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800">
+      {/* Header */}
+      <header className="bg-white/10 backdrop-blur-md border-b border-white/20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-red-600 rounded-lg flex items-center justify-center">
+                <Shield className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-white">Government of Telangana</h1>
+                <p className="text-sm text-blue-200">Digital Governance Portal</p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <Button 
+                onClick={() => router.push('/demo-login')}
+                className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
+              >
+                Demo Login
+              </Button>
+              <Button 
+                onClick={() => setShowLogin(!showLogin)}
+                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+              >
+                Staff Login
+              </Button>
+            </div>
+          </div>
+        </div>
+      </header>
 
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white">
+      <div className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-purple-600/20"></div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="text-center">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6">Minister's Grievance System</h1>
-            <p className="text-xl md:text-2xl mb-8 text-blue-100">
-              Efficient Management of Citizen Requests and Grievances
-            </p>
-            <p className="text-lg mb-8 text-blue-200 max-w-3xl mx-auto">
-              A comprehensive digital platform for the Government of Telangana to manage, track, and resolve citizen
-              grievances with transparency and efficiency.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/dashboard">
-                <Button size="lg" className="bg-white text-blue-600 hover:bg-gray-100">
-                  Access Dashboard
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              </Link>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            
+            {/* Left Content */}
+            <div className="text-white">
+              <div className="mb-8">
+                <div className="inline-flex items-center px-4 py-2 bg-white/10 rounded-full text-sm font-medium text-blue-200 mb-4">
+                  <Award className="w-4 h-4 mr-2" />
+                  Digital India Initiative
+                </div>
+                <h1 className="text-5xl font-bold mb-6 leading-tight">
+                  Minister's
+                  <span className="bg-gradient-to-r from-orange-400 to-red-500 bg-clip-text text-transparent"> Grievance </span>
+                  Management System
+                </h1>
+                <p className="text-xl text-blue-100 mb-8 leading-relaxed">
+                  Empowering citizens through transparent, efficient, and technology-driven governance. 
+                  Real-time tracking and resolution of public grievances.
+                </p>
+              </div>
+
+              {/* Stats */}
+              <div className="grid grid-cols-3 gap-6 mb-8">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-white mb-1">15,247</div>
+                  <div className="text-sm text-blue-200">Grievances Resolved</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-white mb-1">2.1 Days</div>
+                  <div className="text-sm text-blue-200">Avg Resolution</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-white mb-1">96.8%</div>
+                  <div className="text-sm text-blue-200">Satisfaction Rate</div>
+                </div>
+              </div>
+
+              {/* Contact Info */}
+              <div className="space-y-3">
+                <div className="flex items-center text-blue-100">
+                  <Phone className="w-5 h-5 mr-3" />
+                  <span>Helpline: 1800-425-2525</span>
+                </div>
+                <div className="flex items-center text-blue-100">
+                  <Mail className="w-5 h-5 mr-3" />
+                  <span>grievances@telangana.gov.in</span>
+                </div>
+                <div className="flex items-center text-blue-100">
+                  <MapPin className="w-5 h-5 mr-3" />
+                  <span>Secretariat, Hyderabad, Telangana</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Content - Minister Card */}
+            <div className="relative">
+              <Card className="bg-white/10 backdrop-blur-md border border-white/20 overflow-hidden">
+                <CardContent className="p-0">
+                  {/* Minister Photo */}
+                  <div className="relative h-80 bg-gradient-to-br from-blue-600 to-purple-700 flex items-center justify-center">
+                    <div className="w-48 h-48 bg-white/20 rounded-full flex items-center justify-center">
+                      <Users className="w-24 h-24 text-white/80" />
+                    </div>
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-6">
+                      <h3 className="text-2xl font-bold text-white mb-1">Hon'ble Chief Minister</h3>
+                      <p className="text-blue-200">Sri A. Revanth Reddy</p>
+                    </div>
+                  </div>
+                  
+                  {/* Minister Info */}
+                  <div className="p-6 text-white">
+                    <div className="grid grid-cols-2 gap-4 mb-6">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-300 mb-1">4+</div>
+                        <div className="text-sm text-gray-300">Years in Office</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-300 mb-1">125+</div>
+                        <div className="text-sm text-gray-300">Initiatives Launched</div>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-3 text-sm">
+                      <div className="flex items-center">
+                        <CheckCircle className="w-4 h-4 text-green-400 mr-2" />
+                        <span className="text-gray-300">Digital Governance Champion</span>
+                      </div>
+                      <div className="flex items-center">
+                        <CheckCircle className="w-4 h-4 text-green-400 mr-2" />
+                        <span className="text-gray-300">Citizen-Centric Administration</span>
+                      </div>
+                      <div className="flex items-center">
+                        <CheckCircle className="w-4 h-4 text-green-400 mr-2" />
+                        <span className="text-gray-300">Transparent Governance</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Stats Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-          <div className="text-center">
-            <div className="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="h-8 w-8 text-green-600" />
-            </div>
-            <h3 className="text-3xl font-bold text-gray-900 mb-2">1,247</h3>
-            <p className="text-gray-600">Total Requests Processed</p>
-          </div>
-          <div className="text-center">
-            <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Clock className="h-8 w-8 text-blue-600" />
-            </div>
-            <h3 className="text-3xl font-bold text-gray-900 mb-2">3.2</h3>
-            <p className="text-gray-600">Average Resolution Time (Days)</p>
-          </div>
-          <div className="text-center">
-            <div className="bg-purple-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Shield className="h-8 w-8 text-purple-600" />
-            </div>
-            <h3 className="text-3xl font-bold text-gray-900 mb-2">94.2%</h3>
-            <p className="text-gray-600">Citizen Satisfaction Rate</p>
-          </div>
+      {/* Login Modal */}
+      {showLogin && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md bg-white/10 backdrop-blur-md border border-white/20">
+            <CardContent className="p-8">
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full mx-auto mb-4 flex items-center justify-center">
+                  <Shield className="w-8 h-8 text-white" />
+                </div>
+                <h2 className="text-2xl font-bold text-white mb-2">Staff Login</h2>
+                <p className="text-blue-200">Access your dashboard</p>
+              </div>
+
+              <form onSubmit={onSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-white text-sm font-medium mb-2">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="admin@example.com"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-white text-sm font-medium mb-2">
+                    Password
+                  </label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="••••••••"
+                    required
+                  />
+                </div>
+
+                {error && (
+                  <p className="text-red-300 text-sm bg-red-500/20 p-3 rounded-lg">{error}</p>
+                )}
+
+                <div className="flex gap-3">
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:opacity-50"
+                  >
+                    {loading ? "Signing in..." : "Login"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowLogin(false)}
+                    className="border-white/20 text-white hover:bg-white/10"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
         </div>
-
-        {/* System Overview */}
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">Telangana Minister Grievance System</h2>
-          <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-            A comprehensive digital platform for efficient management of citizen grievances and government projects. 
-            Designed for internal use by ministerial staff, PA officers, field officers, and administrators.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
-          <GovernmentCard
-            title="Grievance Management"
-            description="Comprehensive intake, assignment, and tracking system"
-            icon={<FileText className="h-8 w-8" />}
-            href="/dashboard/grievances"
-            className="border-blue-200 hover:border-blue-300"
-          />
-
-          <GovernmentCard
-            title="Project Tracking"
-            description="Monitor government projects and milestones"
-            icon={<BarChart3 className="h-8 w-8" />}
-            href="/dashboard"
-            className="border-green-200 hover:border-green-300"
-          />
-
-          <GovernmentCard
-            title="WhatsApp Integration"
-            description="Auto-capture and process citizen messages"
-            icon={<MessageSquare className="h-8 w-8" />}
-            href="/dashboard"
-            className="border-purple-200 hover:border-purple-300"
-          />
-        </div>
-
-        {/* Staff Access */}
-        <div className="text-center mb-8">
-          <h3 className="text-2xl font-bold text-gray-900 mb-2">Staff Access</h3>
-          <p className="text-gray-600">Direct access to different dashboards</p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-          <GovernmentCard
-            title="Minister"
-            description="Executive dashboard"
-            icon={<Users className="h-6 w-6" />}
-            href="/minister/dashboard"
-            className="border-red-200 hover:border-red-300 text-sm"
-          />
-
-          <GovernmentCard
-            title="PA Officer"
-            description="Assistant workflow"
-            icon={<FileText className="h-6 w-6" />}
-            href="/pa/dashboard"
-            className="border-blue-200 hover:border-blue-300 text-sm"
-          />
-
-          <GovernmentCard
-            title="Back Officer"
-            description="Backend operations"
-            icon={<Shield className="h-6 w-6" />}
-            href="/back-officer/dashboard"
-            className="border-yellow-200 hover:border-yellow-300 text-sm"
-          />
-
-          <GovernmentCard
-            title="Field Officer"
-            description="Ground operations"
-            icon={<MessageSquare className="h-6 w-6" />}
-            href="/field/dashboard"
-            className="border-green-200 hover:border-green-300 text-sm"
-          />
-
-          <GovernmentCard
-            title="AI Assistant"
-            description="Local AI MIS"
-            icon={<BarChart3 className="h-6 w-6" />}
-            href="/assistant"
-            className="border-indigo-200 hover:border-indigo-300 text-sm"
-          />
-
-          <GovernmentCard
-            title="Admin"
-            description="System administration"
-            icon={<BarChart3 className="h-6 w-6" />}
-            href="/admin/dashboard"
-            className="border-purple-200 hover:border-purple-300 text-sm"
-          />
-        </div>
-      </div>
+      )}
 
       {/* Features Section */}
-      <div className="bg-white py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">Key Features</h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Comprehensive tools for efficient grievance management and citizen service delivery
-            </p>
-          </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-bold text-white mb-4">System Capabilities</h2>
+          <p className="text-xl text-blue-200">Advanced features for efficient governance</p>
+        </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <div className="text-center p-6">
-              <div className="bg-blue-100 w-12 h-12 rounded-lg flex items-center justify-center mx-auto mb-4">
-                <MessageSquare className="h-6 w-6 text-blue-600" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">WhatsApp Integration</h3>
-              <p className="text-gray-600">Direct citizen communication through WhatsApp with automated parsing</p>
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <Card className="bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/15 transition-all">
+            <CardContent className="p-6 text-center">
+              <FileText className="w-12 h-12 text-blue-400 mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-white mb-2">Smart Grievance Processing</h3>
+              <p className="text-blue-200">AI-powered categorization and routing</p>
+            </CardContent>
+          </Card>
 
-            <div className="text-center p-6">
-              <div className="bg-green-100 w-12 h-12 rounded-lg flex items-center justify-center mx-auto mb-4">
-                <BarChart3 className="h-6 w-6 text-green-600" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">Real-time Analytics</h3>
-              <p className="text-gray-600">Comprehensive dashboards with performance metrics and trends</p>
-            </div>
+          <Card className="bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/15 transition-all">
+            <CardContent className="p-6 text-center">
+              <BarChart3 className="w-12 h-12 text-green-400 mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-white mb-2">Real-time Analytics</h3>
+              <p className="text-blue-200">Comprehensive performance dashboards</p>
+            </CardContent>
+          </Card>
 
-            <div className="text-center p-6">
-              <div className="bg-purple-100 w-12 h-12 rounded-lg flex items-center justify-center mx-auto mb-4">
-                <Shield className="h-6 w-6 text-purple-600" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">Secure & Compliant</h3>
-              <p className="text-gray-600">Government-grade security with audit trails and compliance</p>
-            </div>
-          </div>
+          <Card className="bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/15 transition-all">
+            <CardContent className="p-6 text-center">
+              <Clock className="w-12 h-12 text-purple-400 mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-white mb-2">24/7 Monitoring</h3>
+              <p className="text-blue-200">Round-the-clock system availability</p>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
       {/* Footer */}
-      <footer className="bg-gray-800 text-white py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <footer className="bg-black/20 backdrop-blur-md border-t border-white/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center">
-            <p className="text-gray-300">© 2024 Government of Telangana. All rights reserved.</p>
-            <p className="text-gray-400 text-sm mt-2">Developed for efficient citizen service delivery</p>
+            <p className="text-blue-200">© 2024 Government of Telangana. All rights reserved.</p>
+            <p className="text-blue-300 text-sm mt-2">Powered by Digital Governance Initiative</p>
           </div>
         </div>
       </footer>

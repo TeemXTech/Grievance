@@ -198,7 +198,7 @@ export default function PADashboard() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">PA {t.dashboard}</h1>
-              <p className="text-gray-600">Personal Assistant Management</p>
+              <p className="text-gray-600">Personal Assistant & Officer Management</p>
             </div>
             <div className="flex items-center space-x-2">
               <Select value={language} onValueChange={setLanguage}>
@@ -230,6 +230,13 @@ export default function PADashboard() {
           >
             <BarChart3 className="w-4 h-4 mr-2" />
             {t.dashboard}
+          </Button>
+          <Button 
+            variant={activeView === 'grievances' ? 'default' : 'outline'}
+            onClick={() => setActiveView('grievances')}
+          >
+            <FileText className="w-4 h-4 mr-2" />
+            {t.grievances}
           </Button>
           <Button 
             variant={activeView === 'whatsapp' ? 'default' : 'outline'}
@@ -330,6 +337,78 @@ export default function PADashboard() {
                   </div>
                 </div>
 
+                {showAddForm && (
+                  <Card className="mb-6">
+                    <CardHeader>
+                      <CardTitle>Add New Grievance</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <form onSubmit={(e) => {
+                        e.preventDefault()
+                        alert('New grievance added successfully!')
+                        setShowAddForm(false)
+                      }} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Title</label>
+                          <Input placeholder="Enter grievance title" required />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Category</label>
+                          <Select required>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Infrastructure">Infrastructure</SelectItem>
+                              <SelectItem value="Water">Water</SelectItem>
+                              <SelectItem value="Education">Education</SelectItem>
+                              <SelectItem value="Healthcare">Healthcare</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Citizen Name</label>
+                          <Input placeholder="Enter citizen name" required />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Phone</label>
+                          <Input placeholder="Enter phone number" required />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Location</label>
+                          <Input placeholder="Enter location" required />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Priority</label>
+                          <Select required>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select priority" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Low">Low</SelectItem>
+                              <SelectItem value="Medium">Medium</SelectItem>
+                              <SelectItem value="High">High</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium mb-2">Description</label>
+                          <Textarea placeholder="Enter detailed description" rows={3} required />
+                        </div>
+                        <div className="md:col-span-2 flex space-x-2">
+                          <Button type="submit">
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add Grievance
+                          </Button>
+                          <Button type="button" variant="outline" onClick={() => setShowAddForm(false)}>
+                            Cancel
+                          </Button>
+                        </div>
+                      </form>
+                    </CardContent>
+                  </Card>
+                )}
+
                 <Card>
                   <CardContent>
                     <Table>
@@ -419,6 +498,68 @@ export default function PADashboard() {
         )}
 
 
+
+        {activeView === 'grievances' && !showFilteredList && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">{t.grievances} Management</h2>
+              <Button onClick={() => setShowFilteredList(true)}>
+                <FileText className="w-4 h-4 mr-2" />
+                View All {t.grievances}
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Card className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105 border-l-4 border-l-blue-500" 
+                    onClick={() => handleCardClick('all')}>
+                <CardContent className="p-6 bg-gradient-to-br from-blue-50 to-white">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">{t.totalGrievances}</p>
+                      <p className="text-3xl font-bold text-blue-600">{dashboardStats.totalGrievances}</p>
+                    </div>
+                    <FileText className="w-8 h-8 text-blue-500" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105 border-l-4 border-l-orange-500" 
+                    onClick={() => handleCardClick('pending')}>
+                <CardContent className="p-6 bg-gradient-to-br from-orange-50 to-white">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">{t.pendingGrievances}</p>
+                      <p className="text-3xl font-bold text-orange-600">{dashboardStats.pendingGrievances}</p>
+                    </div>
+                    <Clock className="w-8 h-8 text-orange-500" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105 border-l-4 border-l-green-500" 
+                    onClick={() => handleCardClick('resolved')}>
+                <CardContent className="p-6 bg-gradient-to-br from-green-50 to-white">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">{t.resolvedGrievances}</p>
+                      <p className="text-3xl font-bold text-green-600">{dashboardStats.resolvedGrievances}</p>
+                    </div>
+                    <Building2 className="w-8 h-8 text-green-500" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105 border-l-4 border-l-purple-500" 
+                    onClick={() => setActiveView('whatsapp')}>
+                <CardContent className="p-6 bg-gradient-to-br from-purple-50 to-white">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">{t.todaysMessages}</p>
+                      <p className="text-3xl font-bold text-purple-600">{dashboardStats.todaysMessages}</p>
+                    </div>
+                    <MessageSquare className="w-8 h-8 text-purple-500" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
 
         {activeView === 'whatsapp' && (
           <div className="space-y-6">

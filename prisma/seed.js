@@ -9,7 +9,7 @@ async function main() {
     create: {
       email: 'admin@example.com',
       name: 'Admin',
-      passwordHash: '$2a$10$VJmxYqXK8bXZutQIV/ZuweH.BVEpnGK/yqPQmBdhPouY9Xh.w1pO6', // "password123"
+      passwordHash: '$2a$10$VJmxYqXK8bXZutQIV/ZuweH.BVEpnGK/yqPQmBdhPouY9Xh.w1pO6',
       role: 'ADMIN',
       phone: '1234567890'
     }
@@ -22,7 +22,7 @@ async function main() {
     create: {
       email: 'pa@example.com',
       name: 'Personal Assistant',
-      passwordHash: '$2a$10$VJmxYqXK8bXZutQIV/ZuweH.BVEpnGK/yqPQmBdhPouY9Xh.w1pO6', // "password123"
+      passwordHash: '$2a$10$VJmxYqXK8bXZutQIV/ZuweH.BVEpnGK/yqPQmBdhPouY9Xh.w1pO6',
       role: 'PA',
       phone: '1234567891'
     }
@@ -35,7 +35,7 @@ async function main() {
     create: {
       email: 'back@example.com',
       name: 'Back Officer',
-      passwordHash: '$2a$10$VJmxYqXK8bXZutQIV/ZuweH.BVEpnGK/yqPQmBdhPouY9Xh.w1pO6', // "password123"
+      passwordHash: '$2a$10$VJmxYqXK8bXZutQIV/ZuweH.BVEpnGK/yqPQmBdhPouY9Xh.w1pO6',
       role: 'BACK_OFFICER',
       phone: '1234567892'
     }

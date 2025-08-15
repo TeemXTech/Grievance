@@ -1,18 +1,19 @@
 "use client";
 import { useEffect, useRef } from "react";
+import 'leaflet/dist/leaflet.css';
 
 export default function TelanganaMap({ onDistrictClick }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
 
   useEffect(() => {
-    if (mapInstanceRef.current) return; // Prevent duplicate map
+    if (mapInstanceRef.current) return;
 
-    // Dynamically import Leaflet to avoid SSR issues
     const initMap = async () => {
+      if (typeof window === 'undefined') return;
+      
       const L = (await import('leaflet')).default;
       
-      // Fix default markers
       delete L.Icon.Default.prototype._getIconUrl;
       L.Icon.Default.mergeOptions({
         iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
@@ -22,7 +23,6 @@ export default function TelanganaMap({ onDistrictClick }) {
       
       if (!mapRef.current) return;
       
-      // Initialize map
       const map = L.map(mapRef.current).setView([17.9784, 79.5941], 7);
       mapInstanceRef.current = map;
 
@@ -137,7 +137,7 @@ export default function TelanganaMap({ onDistrictClick }) {
         });
     };
     
-    initMap();
+    setTimeout(initMap, 100);
 
     // Cleanup function
     return () => {

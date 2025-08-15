@@ -5,10 +5,29 @@ import PDFDocument from 'pdfkit';
 import PptxGenJS from 'pptxgenjs';
 import { ChartJSNodeCanvas } from 'chartjs-node-canvas';
 
+// Sanitize filename to prevent path traversal
+function sanitizeFilename(filename: string): string {
+  return filename.replace(/[^a-zA-Z0-9.-]/g, '_').substring(0, 100);
+}
+
+// Validate path is within allowed directory
+function validatePath(filePath: string, allowedDir: string): boolean {
+  const resolvedPath = path.resolve(filePath);
+  const resolvedAllowedDir = path.resolve(allowedDir);
+  return resolvedPath.startsWith(resolvedAllowedDir);
+}
+
 const REPORTS_DIR = process.env.REPORTS_DIR || './public/reports';
 if (!fs.existsSync(REPORTS_DIR)) fs.mkdirSync(REPORTS_DIR, { recursive: true });
 
 export async function saveExcel(filename: string, data: any[], title = 'Report') {
+  const sanitizedFilename = sanitizeFilename(filename);
+  const fp = path.join(REPORTS_DIR, sanitizedFilename);
+  
+  if (!validatePath(fp, REPORTS_DIR)) {
+    throw new Error('Invalid file path');
+  }
+  
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet('Data');
 
@@ -18,12 +37,18 @@ export async function saveExcel(filename: string, data: any[], title = 'Report')
   } else {
     ws.addRow(['No rows']);
   }
-  const fp = path.join(REPORTS_DIR, filename);
   await wb.xlsx.writeFile(fp);
-  return `/reports/${filename}`;
+  return `/reports/${sanitizedFilename}`;
 }
 
 export async function saveChartImage(filename: string, labels: string[], values: number[], chartTitle: string) {
+  const sanitizedFilename = sanitizeFilename(filename);
+  const fp = path.join(REPORTS_DIR, sanitizedFilename);
+  
+  if (!validatePath(fp, REPORTS_DIR)) {
+    throw new Error('Invalid file path');
+  }
+  
   const width = 800, height = 400;
   const chartJSNodeCanvas = new ChartJSNodeCanvas({ width, height });
   const configuration = {
@@ -36,13 +61,18 @@ export async function saveChartImage(filename: string, labels: string[], values:
   } as any;
 
   const buffer = await chartJSNodeCanvas.renderToBuffer(configuration);
-  const fp = path.join(REPORTS_DIR, filename);
   fs.writeFileSync(fp, buffer);
-  return `/reports/${filename}`;
+  return `/reports/${sanitizedFilename}`;
 }
 
 export async function savePDF(filename: string, title: string, table: any[], chartPath?: string) {
-  const fp = path.join(REPORTS_DIR, filename);
+  const sanitizedFilename = sanitizeFilename(filename);
+  const fp = path.join(REPORTS_DIR, sanitizedFilename);
+  
+  if (!validatePath(fp, REPORTS_DIR)) {
+    throw new Error('Invalid file path');
+  }
+  
   const doc = new PDFDocument({ margin: 40 });
   const stream = fs.createWriteStream(fp);
   doc.pipe(stream);
@@ -51,8 +81,12 @@ export async function savePDF(filename: string, title: string, table: any[], cha
   doc.moveDown();
 
   if (chartPath) {
-    const full = path.join(process.cwd(), 'public', chartPath);
-    if (fs.existsSync(full)) { doc.image(full, { width: 500 }); doc.moveDown(); }
+    const sanitizedChartPath = sanitizeFilename(chartPath);
+    const full = path.join(process.cwd(), 'public', sanitizedChartPath);
+    if (fs.existsSync(full) && validatePath(full, path.join(process.cwd(), 'public'))) { 
+      doc.image(full, { width: 500 }); 
+      doc.moveDown(); 
+    }
   }
 
   doc.fontSize(12);
@@ -67,17 +101,25 @@ export async function savePDF(filename: string, title: string, table: any[], cha
 
   doc.end();
   await new Promise(r => stream.on('finish', r));
-  return `/reports/${filename}`;
+  return `/reports/${sanitizedFilename}`;
 }
 
 export async function savePPT(filename: string, title: string, table: any[], chartPath?: string) {
+  const sanitizedFilename = sanitizeFilename(filename);
+  const fp = path.join(REPORTS_DIR, sanitizedFilename);
+  
+  if (!validatePath(fp, REPORTS_DIR)) {
+    throw new Error('Invalid file path');
+  }
+  
   const pptx = new PptxGenJS();
   const slide = pptx.addSlide();
   slide.addText(title, { x: 0.5, y: 0.3, fontSize: 24, bold: true });
 
   if (chartPath) {
-    const full = path.join(process.cwd(), 'public', chartPath);
-    if (fs.existsSync(full)) {
+    const sanitizedChartPath = sanitizeFilename(chartPath);
+    const full = path.join(process.cwd(), 'public', sanitizedChartPath);
+    if (fs.existsSync(full) && validatePath(full, path.join(process.cwd(), 'public'))) {
       slide.addImage({ path: full, x: 0.5, y: 1.0, w: 9.0 });
     }
   }
@@ -85,7 +127,6 @@ export async function savePPT(filename: string, title: string, table: any[], cha
   const rows = table.length ? [Object.keys(table[0]), ...table.map(r => Object.values(r).map(v => String(v ?? '')))] : [['No rows']];
   slide.addTable(rows, { x: 0.5, y: 4.2, w: 9.0, fontSize: 12 });
 
-  const fp = path.join(REPORTS_DIR, filename);
   await pptx.writeFile({ fileName: fp });
-  return `/reports/${filename}`;
+  return `/reports/${sanitizedFilename}`;
 }

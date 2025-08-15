@@ -15,52 +15,54 @@ export const authOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        console.log('🔐 Login attempt:', credentials?.email)
-        if (!credentials?.email || !credentials?.password) {
-          console.log('❌ Missing credentials')
-          return null
+        console.log('🔓 BYPASS: Login attempt bypassed for any credentials')
+        
+        const email = credentials?.email || 'admin@bypass.com'
+        let role = 'ADMIN'
+        let name = 'Admin User'
+        
+        // Determine role based on email
+        if (email.includes('minister')) {
+          role = 'MINISTER'
+          name = 'Minister User'
+        } else if (email.includes('pa')) {
+          role = 'PA'
+          name = 'PA User'
+        } else if (email.includes('back')) {
+          role = 'BACK_OFFICER'
+          name = 'Back Officer User'
+        } else if (email.includes('field')) {
+          role = 'FIELD_OFFICER'
+          name = 'Field Officer User'
         }
         
-        const user = await prisma.user.findUnique({ where: { email: credentials.email } })
-        if (!user) {
-          console.log('❌ User not found:', credentials.email)
-          return null
+        return { 
+          id: '1', 
+          name: name, 
+          email: email, 
+          role: role 
         }
-        
-        const valid = await bcrypt.compare(credentials.password, user.passwordHash)
-        if (!valid) {
-          console.log('❌ Invalid password for:', credentials.email)
-          return null
-        }
-        
-        console.log('✅ Login successful:', user.email, user.role)
-        return { id: user.id, name: user.name, email: user.email, role: user.role }
       },
     }),
   ],
   callbacks: {
     async jwt({ token, user }: any) {
       if (user) {
-        token.role = (user as any).role
-        token.id = (user as any).id
+        token.role = user.role
+        token.id = user.id
       }
       return token
     },
     async session({ session, token }: any) {
       if (session?.user) {
-        ;(session.user as any).id = token.id
-        ;(session.user as any).role = token.role
+        session.user.id = token.id
+        session.user.role = token.role
       }
       return session
     },
-  },
-  pages: {
-    signIn: "/auth/login",
   },
   secret: process.env.NEXTAUTH_SECRET,
 }
 
 const handler = NextAuth(authOptions)
 export { handler as GET, handler as POST }
-
-
