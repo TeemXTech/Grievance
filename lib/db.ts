@@ -1,17 +1,13 @@
-import { PrismaClient } from '@prisma/client'
+import { Pool } from 'pg';
 
-const prismaClientSingleton = () => {
-  return new PrismaClient()
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+export async function queryDB<T = any>(sql: string, params: any[] = []): Promise<T[]> {
+  const client = await pool.connect();
+  try {
+    const result = await client.query(sql, params);
+    return result.rows as T[];
+  } finally {
+    client.release();
+  }
 }
-
-type PrismaClientSingleton = ReturnType<typeof prismaClientSingleton>
-
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClientSingleton | undefined
-}
-
-const prisma = globalForPrisma.prisma ?? prismaClientSingleton()
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
-
-export default prisma

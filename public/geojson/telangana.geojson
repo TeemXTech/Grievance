@@ -1,0 +1,155 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "NAME_1": "Karimnagar",
+        "TYPE_1": "District",
+        "ENGTYPE_1": "District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [79.1, 18.4], [79.5, 18.4], [79.8, 18.2], [79.9, 17.9], 
+          [79.7, 17.7], [79.3, 17.8], [79.0, 18.0], [79.1, 18.4]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "NAME_1": "Peddapalli",
+        "TYPE_1": "District",
+        "ENGTYPE_1": "District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [79.5, 18.4], [80.0, 18.3], [80.2, 18.0], [79.9, 17.9], 
+          [79.8, 18.2], [79.5, 18.4]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "NAME_1": "Warangal",
+        "TYPE_1": "District",
+        "ENGTYPE_1": "District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [79.0, 18.0], [79.3, 17.8], [79.7, 17.7], [80.1, 17.5], 
+          [80.0, 17.2], [79.5, 17.3], [79.2, 17.6], [79.0, 18.0]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "NAME_1": "Hyderabad",
+        "TYPE_1": "District",
+        "ENGTYPE_1": "District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [78.2, 17.6], [78.7, 17.5], [78.8, 17.2], [78.5, 17.0], 
+          [78.1, 17.1], [78.0, 17.4], [78.2, 17.6]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "NAME_1": "Nalgonda",
+        "TYPE_1": "District",
+        "ENGTYPE_1": "District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [78.7, 17.5], [79.2, 17.6], [79.5, 17.3], [79.3, 16.9], 
+          [78.9, 16.8], [78.5, 17.0], [78.8, 17.2], [78.7, 17.5]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "NAME_1": "Rangareddy",
+        "TYPE_1": "District",
+        "ENGTYPE_1": "District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [78.0, 17.4], [78.1, 17.1], [78.5, 17.0], [78.4, 16.7], 
+          [78.0, 16.8], [77.8, 17.1], [78.0, 17.4]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "NAME_1": "Mahbubnagar",
+        "TYPE_1": "District",
+        "ENGTYPE_1": "District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [77.8, 17.1], [78.0, 16.8], [78.4, 16.7], [78.3, 16.3], 
+          [77.9, 16.2], [77.6, 16.5], [77.8, 17.1]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "NAME_1": "Nizamabad",
+        "TYPE_1": "District",
+        "ENGTYPE_1": "District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [78.5, 18.8], [79.1, 18.4], [79.0, 18.0], [78.7, 18.1], 
+          [78.4, 18.4], [78.5, 18.8]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "NAME_1": "Adilabad",
+        "TYPE_1": "District",
+        "ENGTYPE_1": "District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [78.7, 19.5], [79.5, 19.3], [79.8, 18.8], [79.1, 18.4], 
+          [78.5, 18.8], [78.4, 19.2], [78.7, 19.5]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "NAME_1": "Medak",
+        "TYPE_1": "District",
+        "ENGTYPE_1": "District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [78.4, 18.4], [78.7, 18.1], [79.0, 18.0], [78.8, 17.7], 
+          [78.4, 17.8], [78.2, 18.1], [78.4, 18.4]
+        ]]
+      }
+    }
+  ]
+}

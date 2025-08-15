@@ -102,7 +102,7 @@ export default function HomePage() {
           <p className="text-gray-600">Direct access to different dashboards</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
           <GovernmentCard
             title="Minister"
             description="Executive dashboard"
@@ -133,6 +133,14 @@ export default function HomePage() {
             icon={<MessageSquare className="h-6 w-6" />}
             href="/field/dashboard"
             className="border-green-200 hover:border-green-300 text-sm"
+          />
+
+          <GovernmentCard
+            title="AI Assistant"
+            description="Local AI MIS"
+            icon={<BarChart3 className="h-6 w-6" />}
+            href="/assistant"
+            className="border-indigo-200 hover:border-indigo-300 text-sm"
           />
 
           <GovernmentCard

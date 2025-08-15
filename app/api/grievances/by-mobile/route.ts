@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from 'next/server'
 
 // In-memory storage for demo with dummy data
 let grievances: any[] = [
@@ -22,50 +22,29 @@ let grievances: any[] = [
   }
 ]
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest) {
   try {
-    const id = parseInt(params.id)
-    
-    let grievance = grievances.find(g => g.id === id)
-    
-    // Fallback to mock data if not found
-    if (!grievance) {
-      grievance = {
-        id,
-        trackingNumber: `GRI-I-${id.toString().padStart(2, '0')}-08012025`,
-        title: "Road Repair Needed",
-        description: "Main road has multiple potholes causing accidents",
-        category: "Infrastructure",
-        status: "Pending",
-        priority: "High",
-        citizenName: "Rajesh Kumar",
-        citizenPhone: "+91-98765*****", // Masked for privacy
-        location: "Manthanani Village",
-        createdAt: "2025-01-08T10:30:00Z",
-        updatedAt: "2025-01-08T10:30:00Z",
-        assignedTo: "Field Officer Ramesh",
-        attachments: []
-      }
-    } else {
-      // Mask phone number for privacy in public view
-      grievance = {
-        ...grievance,
-        citizenPhone: grievance.citizenPhone.replace(/.(?=.{4})/g, '*')
-      }
+    const { searchParams } = new URL(request.url)
+    const mobile = searchParams.get('mobile')
+
+    if (!mobile) {
+      return NextResponse.json({
+        error: 'Mobile number is required'
+      }, { status: 400 })
     }
+
+    const userGrievances = grievances.filter(g => g.citizenPhone === mobile)
 
     return NextResponse.json({
       success: true,
-      grievance
+      grievances: userGrievances,
+      count: userGrievances.length
     })
+
   } catch (error) {
-    console.error("Error fetching grievance:", error)
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    )
+    console.error('Error fetching grievances:', error)
+    return NextResponse.json({
+      error: 'Failed to fetch grievances'
+    }, { status: 500 })
   }
 }

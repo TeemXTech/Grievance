@@ -1,1107 +1,468 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
+import dynamic from "next/dynamic"
+
+// Dynamically import TelanganaMap to avoid SSR issues with Leaflet
+const TelanganaMap = dynamic(() => import('../../../components/TelanganaMap'), {
+  ssr: false,
+  loading: () => <div className="h-[500px] bg-gray-100 rounded-lg flex items-center justify-center">Loading Map...</div>
+})
+
+// Dynamically import EventCalendar to avoid SSR issues
+const EventCalendar = dynamic(() => import('../../../components/EventCalendar'), {
+  ssr: false,
+  loading: () => <div className="h-[400px] bg-gray-100 rounded-lg flex items-center justify-center">Loading Calendar...</div>
+})
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { FileText, Building2, BarChart3, Clock, Plus, Download, Languages, Search, Edit, Check, X, ArrowLeft, Calendar, MapPin, MessageCircle, Send } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { GovernmentHeader } from "@/components/ui/government-header"
-import { BarChart, Users, MapPin, Clock, TrendingUp, Phone, Calendar, Filter, AlertTriangle, CheckCircle, UserPlus, FileText, Building2, Eye, Download, ArrowLeft, ChevronRight } from "lucide-react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 export default function MinisterDashboard() {
-  const [timeFilter, setTimeFilter] = useState("month")
-  const [selectedDistrict, setSelectedDistrict] = useState("all")
-  const [selectedMandal, setSelectedMandal] = useState("all")
-  const [selectedVillage, setSelectedVillage] = useState("all")
-  const [selectedCategory, setSelectedCategory] = useState("all")
-  const [selectedStatus, setSelectedStatus] = useState("all")
-  const [selectedPriority, setSelectedPriority] = useState("all")
-  const [currentView, setCurrentView] = useState("state") // state, district, mandal, village
-  const [breadcrumb, setBreadcrumb] = useState([{ name: "Telangana", level: "state" }])
-  const [dashboardData, setDashboardData] = useState<any>({})
-  const [loading, setLoading] = useState(true)
-  const [selectedItem, setSelectedItem] = useState<any>(null)
-  const [assignDialogOpen, setAssignDialogOpen] = useState(false)
-  const [availableUsers, setAvailableUsers] = useState([])
-  const [mapData, setMapData] = useState<any>({})
-  const [activeTab, setActiveTab] = useState("overview")
+  const [activeView, setActiveView] = useState("dashboard")
+  const [selectedDistrict, setSelectedDistrict] = useState(null)
+  const [selectedConstituency, setSelectedConstituency] = useState(null)
+  const [showCalendar, setShowCalendar] = useState(false)
+  const [showAI, setShowAI] = useState(false)
+  const [aiQuery, setAiQuery] = useState("")
+  const [aiResponse, setAiResponse] = useState("")
+  const [language, setLanguage] = useState("en")
+  const [searchTerm, setSearchTerm] = useState("")
+  const [showFilteredList, setShowFilteredList] = useState(false)
+  const [filterType, setFilterType] = useState("all")
+  const [dataType, setDataType] = useState("grievances")
+  const [calendarView, setCalendarView] = useState('today')
+  const [selectedEvent, setSelectedEvent] = useState(null)
+  const [showAssignModal, setShowAssignModal] = useState(false)
 
-  const loadDashboardData = async () => {
-    try {
-      setLoading(true)
-      const params = new URLSearchParams({
-        timeFilter,
-        district: selectedDistrict,
-        mandal: selectedMandal,
-        village: selectedVillage,
-        category: selectedCategory,
-        status: selectedStatus,
-        priority: selectedPriority,
-        view: currentView
-      })
-      const [dashboardRes, usersRes, mapRes] = await Promise.all([
-        fetch(`/api/minister/dashboard?${params}`),
-        fetch('/api/users'),
-        fetch(`/api/minister/map-data?${params}`)
-      ])
-      const dashboardData = await dashboardRes.json()
-      const usersData = await usersRes.json()
-      const mapData = await mapRes.json()
-      
-      setDashboardData(dashboardData)
-      setMapData(mapData)
-      setAvailableUsers(usersData.filter((u: any) => ['PA', 'FIELD_OFFICER', 'BACK_OFFICER'].includes(u.role)))
-    } catch (error) {
-      console.error("Failed to load dashboard:", error)
-    } finally {
-      setLoading(false)
+  const translations = {
+    en: {
+      dashboard: "Dashboard", grievances: "Grievances", projects: "Projects", 
+      totalGrievances: "Total Grievances", totalProjects: "Total Projects", 
+      pendingItems: "Pending Items", completedItems: "Completed Items",
+      calendar: "Calendar", map: "Telangana Map", aiAssistant: "AI Assistant",
+      askQuestion: "Ask me anything about your constituency...",
+      send: "Send", clear: "Clear"
+    },
+    te: {
+      dashboard: "డ్యాష్బోర్డ్", grievances: "ఫిర్యాదులు", projects: "ప్రాజెక్టులు",
+      totalGrievances: "మొత్తం ఫిర్యాదులు", totalProjects: "మొత్తం ప్రాజెక్టులు",
+      pendingItems: "పెండింగ్ అంశలు", completedItems: "పూర్తయిన అంశలు",
+      calendar: "క్యాలెండర్", map: "తెలంగాణ మ్యాప్", aiAssistant: "AI సహాయకుడు",
+      askQuestion: "మీ నియోజకవర్గం గురించి ఏదైనా అడగండి...",
+      send: "పంపు", clear: "క్లియర్"
     }
   }
 
-  const handleAssignment = async (type: string, itemId: string, assigneeId: string) => {
-    try {
-      await fetch('/api/minister/assign', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type, itemId, assigneeId })
-      })
-      setAssignDialogOpen(false)
-      setSelectedItem(null)
-      loadDashboardData()
-    } catch (error) {
-      console.error('Assignment failed:', error)
+  const t = translations[language]
+
+  // Mock data with district/constituency mapping
+  const mockGrievances = [
+    {
+      id: 1, trackingNumber: "GRI-I-23-08012025", title: "Road Repair Needed", category: "Infrastructure",
+      status: "Pending", priority: "High", citizenName: "Rajesh Kumar", citizenPhone: "+91-9876543210",
+      location: "Manthanani Village", district: "Karimnagar", constituency: "Manthanani", 
+      description: "Main road has multiple potholes", createdAt: "2025-01-08", assignedTo: "Field Officer Ramesh"
+    },
+    {
+      id: 2, trackingNumber: "GRI-H-45-07012025", title: "Water Supply Issue", category: "Water",
+      status: "In Progress", priority: "Medium", citizenName: "Sita Devi", citizenPhone: "+91-9876543211",
+      location: "Ramagundam", district: "Peddapalli", constituency: "Ramagundam",
+      description: "Irregular water supply", createdAt: "2025-01-07", assignedTo: "PA Srinivas"
     }
+  ]
+
+  const mockProjects = [
+    {
+      id: 1, projectNumber: "PRJ-I-12-08012025", name: "Bridge Construction", category: "Infrastructure",
+      status: "In Progress", budget: "₹50 Lakh", location: "Manthanani", district: "Karimnagar", 
+      constituency: "Manthanani", description: "New bridge construction", createdAt: "2025-01-08", 
+      assignedTo: "Engineer Kumar"
+    }
+  ]
+
+  const mockCalendarEvents = {
+    today: [
+      { id: 1, time: '09:00', title: 'Village Visit - Manthanani', type: 'visit', assignedTo: 'PA Srinivas', status: 'confirmed' },
+      { id: 2, time: '14:00', title: 'Grievance Review Meeting', type: 'meeting', assignedTo: 'Field Officer Ramesh', status: 'pending' },
+      { id: 3, time: '16:30', title: 'Project Inspection - Bridge', type: 'inspection', assignedTo: null, status: 'unassigned' }
+    ],
+    week: [
+      { id: 4, date: '2025-01-09', time: '10:00', title: 'District Collector Meeting', type: 'meeting', assignedTo: 'PA Srinivas', status: 'confirmed' },
+      { id: 5, date: '2025-01-10', time: '15:00', title: 'Public Hearing', type: 'hearing', assignedTo: 'Field Officer Kumar', status: 'confirmed' },
+      { id: 6, date: '2025-01-11', time: '11:00', title: 'Hospital Inauguration', type: 'event', assignedTo: null, status: 'unassigned' }
+    ],
+    month: [
+      { id: 7, date: '2025-01-15', time: '09:00', title: 'Budget Review', type: 'meeting', assignedTo: 'PA Srinivas', status: 'confirmed' },
+      { id: 8, date: '2025-01-20', time: '14:00', title: 'School Opening Ceremony', type: 'event', assignedTo: 'Field Officer Ramesh', status: 'confirmed' },
+      { id: 9, date: '2025-01-25', time: '10:30', title: 'Road Project Launch', type: 'event', assignedTo: null, status: 'unassigned' }
+    ]
   }
 
-  const handleDrillDown = (level: string, name: string, value: string) => {
-    const newBreadcrumb = [...breadcrumb]
+  const teamMembers = [
+    { id: 1, name: 'PA Srinivas', role: 'Personal Assistant' },
+    { id: 2, name: 'Field Officer Ramesh', role: 'Field Officer' },
+    { id: 3, name: 'Field Officer Kumar', role: 'Field Officer' },
+    { id: 4, name: 'Back Officer Priya', role: 'Back Officer' }
+  ]
+
+  const telanganaDistricts = [
+    { name: "Karimnagar", constituencies: ["Manthanani", "Karimnagar", "Choppadandi"] },
+    { name: "Peddapalli", constituencies: ["Ramagundam", "Peddapalli", "Dharmapuri"] },
+    { name: "Warangal", constituencies: ["Warangal East", "Warangal West", "Wardhanapet"] }
+  ]
+
+  const dashboardStats = {
+    totalGrievances: mockGrievances.length,
+    totalProjects: mockProjects.length,
+    pendingItems: mockGrievances.filter(g => g.status === 'Pending').length + mockProjects.filter(p => p.status === 'Planning').length,
+    completedItems: mockGrievances.filter(g => g.status === 'Resolved').length + mockProjects.filter(p => p.status === 'Completed').length
+  }
+
+  const getFilteredData = () => {
+    let data = dataType === 'grievances' ? mockGrievances : mockProjects
     
-    if (level === "district") {
-      setSelectedDistrict(value)
-      setCurrentView("district")
-      newBreadcrumb.push({ name, level: "district" })
-    } else if (level === "mandal") {
-      setSelectedMandal(value)
-      setCurrentView("mandal")
-      newBreadcrumb.push({ name, level: "mandal" })
-    } else if (level === "village") {
-      setSelectedVillage(value)
-      setCurrentView("village")
-      newBreadcrumb.push({ name, level: "village" })
+    if (selectedDistrict) {
+      data = data.filter(item => item.district === selectedDistrict)
+    }
+    if (selectedConstituency) {
+      data = data.filter(item => item.constituency === selectedConstituency)
     }
     
-    setBreadcrumb(newBreadcrumb)
+    return data
   }
 
-  const handleBreadcrumbClick = (index: number) => {
-    const newBreadcrumb = breadcrumb.slice(0, index + 1)
-    setBreadcrumb(newBreadcrumb)
+  const handleAIQuery = () => {
+    if (!aiQuery.trim()) return
     
-    const level = newBreadcrumb[newBreadcrumb.length - 1].level
-    setCurrentView(level)
+    // Simple AI responses based on keywords
+    let response = ""
+    const query = aiQuery.toLowerCase()
     
-    if (level === "state") {
-      setSelectedDistrict("all")
-      setSelectedMandal("all")
-      setSelectedVillage("all")
-    } else if (level === "district") {
-      setSelectedMandal("all")
-      setSelectedVillage("all")
-    } else if (level === "mandal") {
-      setSelectedVillage("all")
+    if (query.includes("grievance") || query.includes("complaint")) {
+      response = `You have ${dashboardStats.totalGrievances} total grievances, with ${dashboardStats.pendingItems} pending. Most common issues are infrastructure and water supply problems in Manthanani and Ramagundam areas.`
+    } else if (query.includes("project")) {
+      response = `Currently ${dashboardStats.totalProjects} projects are running with budget allocation of ₹52 Lakh total. Bridge construction in Manthanani is in progress.`
+    } else if (query.includes("calendar") || query.includes("meeting")) {
+      response = `You have ${mockCalendarEvents.today.length} events today, ${mockCalendarEvents.week.length} this week, and ${mockCalendarEvents.month.length} this month. Next event is ${mockCalendarEvents.today[0]?.title} at ${mockCalendarEvents.today[0]?.time}.`
+    } else if (query.includes("district") || query.includes("area")) {
+      response = `Your constituency covers ${telanganaDistricts.length} main districts: Karimnagar, Peddapalli, and Warangal with multiple constituencies under each.`
+    } else {
+      response = `I can help you with information about grievances, projects, calendar events, and constituency data. Please ask specific questions about these topics.`
     }
+    
+    setAiResponse(response)
   }
 
-  useEffect(() => {
-    loadDashboardData()
-  }, [timeFilter, selectedDistrict, selectedMandal, selectedVillage, selectedCategory, selectedStatus, selectedPriority, currentView])
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "RESOLVED": return "bg-green-100 text-green-800"
-      case "IN_PROGRESS": return "bg-blue-100 text-blue-800"
-      case "WIP": return "bg-yellow-100 text-yellow-800"
-      case "PENDING": return "bg-orange-100 text-orange-800"
-      case "ASSIGNED": return "bg-purple-100 text-purple-800"
-      default: return "bg-gray-100 text-gray-800"
-    }
-  }
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "URGENT": return "bg-red-100 text-red-800"
-      case "HIGH": return "bg-orange-100 text-orange-800"
-      case "MEDIUM": return "bg-blue-100 text-blue-800"
-      case "LOW": return "bg-gray-100 text-gray-800"
-      default: return "bg-gray-100 text-gray-800"
-    }
-  }
-
-  const calculateDays = (startDate: string, endDate?: string) => {
-    const start = new Date(startDate)
-    const end = endDate ? new Date(endDate) : new Date()
-    return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+  const handleMapClick = (district, constituency = null) => {
+    setSelectedDistrict(district)
+    setSelectedConstituency(constituency)
+    setShowFilteredList(true)
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <GovernmentHeader
-        title="Minister Dashboard"
-        description="Comprehensive Analytics & Village Insights"
-        userName="Hon. Minister"
-        userRole="Minister"
-      />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Breadcrumb Navigation */}
-        <Card className="mb-4">
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2 text-sm">
-              {breadcrumb.map((item, index) => (
-                <div key={index} className="flex items-center">
-                  <button
-                    onClick={() => handleBreadcrumbClick(index)}
-                    className="text-blue-600 hover:text-blue-800 font-medium"
-                  >
-                    {item.name}
-                  </button>
-                  {index < breadcrumb.length - 1 && (
-                    <ChevronRight className="w-4 h-4 mx-2 text-gray-400" />
-                  )}
-                </div>
-              ))}
+      <div className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-6">
+          <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
+            <div className="min-w-0">
+              <h1 className="text-xl lg:text-2xl font-bold text-gray-900 truncate">Minister {t.dashboard}</h1>
+              <p className="text-sm lg:text-base text-gray-600 truncate">Manthanani Constituency Management</p>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Enhanced Filters */}
-        <Card className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-blue-800">
-              <Filter className="w-5 h-5" />
-              Dashboard Filters
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-              <Select value={timeFilter} onValueChange={setTimeFilter}>
-                <SelectTrigger>
-                  <Calendar className="w-4 h-4 mr-2" />
+            <div className="flex flex-wrap items-center gap-2">
+              <Select value={language} onValueChange={setLanguage}>
+                <SelectTrigger className="w-28 lg:w-32">
+                  <Languages className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-2" />
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="today">Today</SelectItem>
-                  <SelectItem value="week">This Week</SelectItem>
-                  <SelectItem value="month">This Month</SelectItem>
-                  <SelectItem value="year">This Year</SelectItem>
-                  <SelectItem value="all">All Time</SelectItem>
+                  <SelectItem value="en">English</SelectItem>
+                  <SelectItem value="te">తెలుగు</SelectItem>
                 </SelectContent>
               </Select>
-
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger>
-                  <FileText className="w-4 h-4 mr-2" />
-                  <SelectValue placeholder="Category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  <SelectItem value="HEALTH">Health</SelectItem>
-                  <SelectItem value="JOBS">Jobs</SelectItem>
-                  <SelectItem value="CIVIL_WORK">Civil Work</SelectItem>
-                  <SelectItem value="CM_FUND">CM Fund</SelectItem>
-                  <SelectItem value="INFRASTRUCTURE">Infrastructure</SelectItem>
-                  <SelectItem value="EDUCATION">Education</SelectItem>
-                  <SelectItem value="AGRICULTURE">Agriculture</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                <SelectTrigger>
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="PENDING">Pending</SelectItem>
-                  <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-                  <SelectItem value="WIP">WIP</SelectItem>
-                  <SelectItem value="RESOLVED">Resolved</SelectItem>
-                  <SelectItem value="ASSIGNED">Assigned</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select value={selectedPriority} onValueChange={setSelectedPriority}>
-                <SelectTrigger>
-                  <AlertTriangle className="w-4 h-4 mr-2" />
-                  <SelectValue placeholder="Priority" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Priority</SelectItem>
-                  <SelectItem value="URGENT">Urgent</SelectItem>
-                  <SelectItem value="HIGH">High</SelectItem>
-                  <SelectItem value="MEDIUM">Medium</SelectItem>
-                  <SelectItem value="LOW">Low</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {currentView === "state" && (
-                <Select value={selectedDistrict} onValueChange={(value) => {
-                  if (value !== "all") {
-                    handleDrillDown("district", value, value)
-                  }
-                }}>
-                  <SelectTrigger>
-                    <Building2 className="w-4 h-4 mr-2" />
-                    <SelectValue placeholder="Select District" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Districts</SelectItem>
-                    <SelectItem value="Hyderabad">Hyderabad</SelectItem>
-                    <SelectItem value="Warangal">Warangal</SelectItem>
-                    <SelectItem value="Nizamabad">Nizamabad</SelectItem>
-                    <SelectItem value="Karimnagar">Karimnagar</SelectItem>
-                    <SelectItem value="Khammam">Khammam</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-
-              {currentView === "district" && (
-                <Select value={selectedMandal} onValueChange={(value) => {
-                  if (value !== "all") {
-                    handleDrillDown("mandal", value, value)
-                  }
-                }}>
-                  <SelectTrigger>
-                    <MapPin className="w-4 h-4 mr-2" />
-                    <SelectValue placeholder="Select Mandal" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Mandals</SelectItem>
-                    {mapData.mandals?.map((mandal: any) => (
-                      <SelectItem key={mandal.name} value={mandal.name}>{mandal.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-
-              {currentView === "mandal" && (
-                <Select value={selectedVillage} onValueChange={(value) => {
-                  if (value !== "all") {
-                    handleDrillDown("village", value, value)
-                  }
-                }}>
-                  <SelectTrigger>
-                    <Users className="w-4 h-4 mr-2" />
-                    <SelectValue placeholder="Select Village" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Villages</SelectItem>
-                    {mapData.villages?.map((village: any) => (
-                      <SelectItem key={village.name} value={village.name}>{village.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-
-              <Button onClick={loadDashboardData} className="w-full bg-blue-600 hover:bg-blue-700">
-                <TrendingUp className="w-4 h-4 mr-2" />
-                Refresh
+              <Button onClick={() => setShowCalendar(!showCalendar)} variant={showCalendar ? 'default' : 'outline'} size="sm" className="text-xs lg:text-sm">
+                <Calendar className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-2" />
+                <span className="hidden sm:inline">{t.calendar}</span>
+              </Button>
+              <Button onClick={() => setShowAI(!showAI)} variant={showAI ? 'default' : 'outline'} size="sm" className="text-xs lg:text-sm">
+                <MessageCircle className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-2" />
+                <span className="hidden sm:inline">{t.aiAssistant}</span>
               </Button>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Active Filters Notification */}
-        {(selectedStatus !== "all" || selectedCategory !== "all" || selectedPriority !== "all") && (
-          <Card className="mb-4 border-blue-200 bg-blue-50">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Filter className="w-4 h-4 text-blue-600" />
-                  <span className="text-sm font-medium text-blue-800">Active Filters:</span>
-                  {selectedStatus !== "all" && <Badge variant="outline">Status: {selectedStatus}</Badge>}
-                  {selectedCategory !== "all" && <Badge variant="outline">Category: {selectedCategory}</Badge>}
-                  {selectedPriority !== "all" && <Badge variant="outline">Priority: {selectedPriority}</Badge>}
-                </div>
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  onClick={() => {
-                    setSelectedStatus("all")
-                    setSelectedCategory("all")
-                    setSelectedPriority("all")
-                  }}
-                >
-                  Clear All
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Enhanced Key Metrics */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-gradient-to-br from-blue-500 to-blue-700 text-white cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-                onClick={() => {
-                  setSelectedStatus("all")
-                  setSelectedCategory("all")
-                  setSelectedPriority("all")
-                  setActiveTab("grievances")
-                }}>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-blue-100 text-sm font-medium">Total Grievances</p>
-                  <p className="text-4xl font-bold mb-1">{dashboardData.stats?.grievances?.total || 0}</p>
-                  <p className="text-xs text-blue-200">Click to view all</p>
-                </div>
-                <BarChart className="w-10 h-10 text-blue-200" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-green-500 to-green-700 text-white cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-                onClick={() => {
-                  setSelectedStatus("RESOLVED")
-                  setSelectedCategory("all")
-                  setSelectedPriority("all")
-                  setActiveTab("grievances")
-                }}>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-green-100 text-sm font-medium">Resolved</p>
-                  <p className="text-4xl font-bold mb-1">{dashboardData.stats?.grievances?.resolved || 0}</p>
-                  <p className="text-xs text-green-200">
-                    {dashboardData.stats?.grievances?.total ? Math.round((dashboardData.stats.grievances.resolved / dashboardData.stats.grievances.total) * 100) : 0}% Success Rate
-                  </p>
-                </div>
-                <CheckCircle className="w-10 h-10 text-green-200" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-orange-500 to-orange-700 text-white cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-                onClick={() => {
-                  setSelectedStatus("PENDING")
-                  setSelectedCategory("all")
-                  setSelectedPriority("all")
-                  setActiveTab("grievances")
-                }}>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-orange-100 text-sm font-medium">Pending Action</p>
-                  <p className="text-4xl font-bold mb-1">{dashboardData.stats?.grievances?.pending || 0}</p>
-                  <p className="text-xs text-orange-200">Click to view pending</p>
-                </div>
-                <AlertTriangle className="w-10 h-10 text-orange-200" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-purple-500 to-purple-700 text-white cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-                onClick={() => {
-                  setActiveTab("assignments")
-                }}>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-purple-100 text-sm font-medium">Active Users</p>
-                  <p className="text-4xl font-bold mb-1">{availableUsers.length || 0}</p>
-                  <p className="text-xs text-purple-200">Team members online</p>
-                </div>
-                <Users className="w-10 h-10 text-purple-200" />
-              </div>
-            </CardContent>
-          </Card>
+          </div>
         </div>
+      </div>
 
-        {/* Alerts Section */}
-        {dashboardData.alerts && dashboardData.alerts.length > 0 && (
-          <Card className="mb-6 border-orange-200 bg-orange-50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-orange-800">
-                <AlertTriangle className="w-5 h-5" />
-                Alerts & Notifications
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {dashboardData.alerts.map((alert: any, index: number) => (
-                  <div key={index} className={`p-3 rounded-lg ${alert.type === 'warning' ? 'bg-orange-100 text-orange-800' : 'bg-blue-100 text-blue-800'}`}>
-                    <div className="flex items-center justify-between">
-                      <span>{alert.message}</span>
-                      <Badge variant="outline">{alert.count}</Badge>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
+          {/* Main Dashboard */}
+          <div className="xl:col-span-2 space-y-6">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+              <Card className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-[1.02] border-l-4 border-l-blue-500" 
+                    onClick={() => { setDataType('grievances'); setShowFilteredList(true); }}>
+                <CardContent className="p-4 lg:p-6 bg-gradient-to-br from-blue-50 to-white">
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs lg:text-sm font-medium text-gray-600 truncate">{t.totalGrievances}</p>
+                      <p className="text-2xl lg:text-3xl font-bold text-blue-600">{dashboardStats.totalGrievances}</p>
                     </div>
+                    <FileText className="w-6 h-6 lg:w-8 lg:h-8 text-blue-500 flex-shrink-0 ml-2" />
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6" id="main-tabs">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="grievances">Grievances</TabsTrigger>
-            <TabsTrigger value="projects">Projects</TabsTrigger>
-            <TabsTrigger value="map">Interactive Map</TabsTrigger>
-            <TabsTrigger value="assignments">Assignments</TabsTrigger>
-            <TabsTrigger value="reports">Reports</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Hierarchical View */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Current View: {currentView.charAt(0).toUpperCase() + currentView.slice(1)}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {currentView === "state" && (
-                    <div className="space-y-3">
-                      <h4 className="font-medium">Districts</h4>
-                      {mapData.districts?.map((district: any) => (
-                        <div key={district.name} className="flex items-center justify-between p-3 border rounded hover:bg-gray-50 cursor-pointer"
-                             onClick={() => handleDrillDown("district", district.name, district.name)}>
-                          <div>
-                            <div className="font-medium">{district.name}</div>
-                            <div className="text-sm text-gray-500">{district.mandals} mandals, {district.villages} villages</div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-sm font-medium">{district.grievances} grievances</div>
-                            <div className="text-sm font-medium text-blue-600">{district.projects} projects</div>
-                          </div>
-                        </div>
-                      )) || (
-                        <div className="text-center py-8 text-gray-500">
-                          <Building2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                          <p>Loading districts...</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  
-                  {currentView === "district" && (
-                    <div className="space-y-3">
-                      <h4 className="font-medium">Mandals in {breadcrumb[breadcrumb.length - 1].name}</h4>
-                      {mapData.mandals?.map((mandal: any) => (
-                        <div key={mandal.name} className="flex items-center justify-between p-3 border rounded hover:bg-gray-50 cursor-pointer"
-                             onClick={() => handleDrillDown("mandal", mandal.name, mandal.name)}>
-                          <div>
-                            <div className="font-medium">{mandal.name}</div>
-                            <div className="text-sm text-gray-500">{mandal.villages} villages</div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-sm font-medium">{mandal.grievances} grievances</div>
-                            <div className="text-sm font-medium text-blue-600">{mandal.projects} projects</div>
-                          </div>
-                        </div>
-                      )) || (
-                        <div className="text-center py-8 text-gray-500">
-                          <MapPin className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                          <p>Loading mandals...</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  
-                  {currentView === "mandal" && (
-                    <div className="space-y-3">
-                      <h4 className="font-medium">Villages in {breadcrumb[breadcrumb.length - 1].name}</h4>
-                      {mapData.villages?.map((village: any) => (
-                        <div key={village.name} className="flex items-center justify-between p-3 border rounded hover:bg-gray-50 cursor-pointer"
-                             onClick={() => handleDrillDown("village", village.name, village.name)}>
-                          <div>
-                            <div className="font-medium">{village.name}</div>
-                            <div className="text-sm text-gray-500">Population: {village.population}</div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-sm font-medium">{village.grievances} grievances</div>
-                            <div className="text-sm font-medium text-blue-600">{village.projects} projects</div>
-                          </div>
-                        </div>
-                      )) || (
-                        <div className="text-center py-8 text-gray-500">
-                          <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                          <p>Loading villages...</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  
-                  {currentView === "village" && (
-                    <div className="space-y-4">
-                      <h4 className="font-medium">Village Details: {breadcrumb[breadcrumb.length - 1].name}</h4>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="p-3 bg-blue-50 rounded">
-                          <div className="text-2xl font-bold text-blue-600">{mapData.villageDetails?.population || 0}</div>
-                          <div className="text-sm text-blue-800">Population</div>
-                        </div>
-                        <div className="p-3 bg-green-50 rounded">
-                          <div className="text-2xl font-bold text-green-600">{mapData.villageDetails?.households || 0}</div>
-                          <div className="text-sm text-green-800">Households</div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </CardContent>
               </Card>
-              
-              {/* Quick Stats */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Quick Actions</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <Button className="w-full justify-start" variant="outline" 
-                            onClick={() => {
-                              setSelectedPriority("URGENT")
-                              setActiveTab("grievances")
-                            }}>
-                      <AlertTriangle className="w-4 h-4 mr-2 text-red-500" />
-                      View Urgent Issues ({dashboardData.stats?.urgent || 0})
-                    </Button>
-                    <Button className="w-full justify-start" variant="outline"
-                            onClick={() => {
-                              setSelectedPriority("HIGH")
-                              setActiveTab("grievances")
-                            }}>
-                      <TrendingUp className="w-4 h-4 mr-2 text-orange-500" />
-                      View High Priority ({dashboardData.stats?.high || 0})
-                    </Button>
-                    <Button className="w-full justify-start" variant="outline"
-                            onClick={() => {
-                              setSelectedStatus("PENDING")
-                              setActiveTab("assignments")
-                            }}>
-                      <Clock className="w-4 h-4 mr-2 text-yellow-500" />
-                      Pending Assignments ({dashboardData.stats?.unassigned || 0})
-                    </Button>
-                    <Button className="w-full justify-start" variant="outline"
-                            onClick={() => {
-                              // Create new grievance - redirect to form
-                              window.location.href = '/dashboard/grievances?action=create'
-                            }}>
-                      <FileText className="w-4 h-4 mr-2" />
-                      Create New Grievance
-                    </Button>
+              <Card className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-[1.02] border-l-4 border-l-green-500" 
+                    onClick={() => { setDataType('projects'); setShowFilteredList(true); }}>
+                <CardContent className="p-4 lg:p-6 bg-gradient-to-br from-green-50 to-white">
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs lg:text-sm font-medium text-gray-600 truncate">{t.totalProjects}</p>
+                      <p className="text-2xl lg:text-3xl font-bold text-green-600">{dashboardStats.totalProjects}</p>
+                    </div>
+                    <Building2 className="w-6 h-6 lg:w-8 lg:h-8 text-green-500 flex-shrink-0 ml-2" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-[1.02] border-l-4 border-l-orange-500">
+                <CardContent className="p-4 lg:p-6 bg-gradient-to-br from-orange-50 to-white">
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs lg:text-sm font-medium text-gray-600 truncate">{t.pendingItems}</p>
+                      <p className="text-2xl lg:text-3xl font-bold text-orange-600">{dashboardStats.pendingItems}</p>
+                    </div>
+                    <Clock className="w-6 h-6 lg:w-8 lg:h-8 text-orange-500 flex-shrink-0 ml-2" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-[1.02] border-l-4 border-l-purple-500">
+                <CardContent className="p-4 lg:p-6 bg-gradient-to-br from-purple-50 to-white">
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs lg:text-sm font-medium text-gray-600 truncate">{t.completedItems}</p>
+                      <p className="text-2xl lg:text-3xl font-bold text-purple-600">{dashboardStats.completedItems}</p>
+                    </div>
+                    <Check className="w-6 h-6 lg:w-8 lg:h-8 text-purple-500 flex-shrink-0 ml-2" />
                   </div>
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
 
-          <TabsContent value="map">
+            {/* Telangana Map */}
             <Card>
               <CardHeader>
-                <CardTitle>Interactive Telangana Map</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-96 bg-gray-100 rounded-lg flex items-center justify-center">
-                  <div className="text-center">
-                    <MapPin className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                    <p className="text-gray-600">Interactive map will be loaded here</p>
-                    <p className="text-sm text-gray-500">Click on districts to drill down</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="grievances">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>Grievances Overview</span>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm">
-                      <Download className="w-4 h-4 mr-2" />
-                      Export
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Eye className="w-4 h-4 mr-2" />
-                      View All
-                    </Button>
-                  </div>
+                <CardTitle className="flex items-center">
+                  <MapPin className="w-5 h-5 mr-2" />
+                  {t.map} - Interactive District View
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {loading ? (
-                  <div className="flex justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <div className="bg-gradient-to-br from-green-50 to-blue-50 p-4 rounded-lg">
+                  <TelanganaMap onDistrictClick={handleMapClick} />
+                  {selectedDistrict && (
+                    <div className="mt-4 p-4 bg-white rounded-lg border shadow-sm">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="text-sm text-gray-600">
+                            Selected: <strong className="text-blue-600">{selectedConstituency || selectedDistrict}</strong>
+                            {selectedDistrict && ` District`}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Click on districts to view detailed information and statistics
+                          </p>
+                        </div>
+                        <Button size="sm" variant="outline" onClick={() => { setSelectedDistrict(null); setSelectedConstituency(null); }}>
+                          Clear Selection
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Filtered List */}
+            {showFilteredList && (
+              <Card>
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <CardTitle>
+                      {selectedConstituency || selectedDistrict || 'All'} - {dataType === 'grievances' ? t.grievances : t.projects}
+                    </CardTitle>
+                    <Button onClick={() => setShowFilteredList(false)} variant="outline" size="sm">
+                      <X className="w-4 h-4" />
+                    </Button>
                   </div>
-                ) : (
+                </CardHeader>
+                <CardContent>
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Reference</TableHead>
-                        <TableHead>Requester</TableHead>
-                        <TableHead>Category</TableHead>
+                        <TableHead>ID</TableHead>
+                        <TableHead>Title</TableHead>
                         <TableHead>Location</TableHead>
-                        <TableHead>Assigned To</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead>Priority</TableHead>
-                        <TableHead>Actions</TableHead>
+                        <TableHead>Assigned To</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {dashboardData.grievances?.map((grievance: any) => (
-                        <TableRow key={grievance.id} className="hover:bg-gray-50">
-                          <TableCell className="font-mono text-sm font-medium">
-                            {grievance.referenceNumber}
-                          </TableCell>
+                      {getFilteredData().map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-medium">{item.trackingNumber || item.projectNumber}</TableCell>
+                          <TableCell>{item.title || item.name}</TableCell>
+                          <TableCell>{item.location}</TableCell>
                           <TableCell>
-                            <div>
-                              <div className="font-medium">{grievance.requesterName}</div>
-                              <div className="text-sm text-gray-500 flex items-center">
-                                <Phone className="w-3 h-3 mr-1" />
-                                {grievance.requesterPhone}
-                              </div>
-                              <div className="text-xs text-gray-400">
-                                Created: {new Date(grievance.createdAt).toLocaleDateString()}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{grievance.grievanceCategory || 'OTHER'}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center">
-                              <MapPin className="w-3 h-3 mr-1" />
-                              <div className="text-sm">
-                                {grievance.village && <div>{grievance.village}</div>}
-                                {grievance.mandal && <div className="text-gray-500">{grievance.mandal}</div>}
-                                {grievance.district && <div className="text-gray-400">{grievance.district}</div>}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {grievance.assignedTo ? (
-                              <div className="flex items-center">
-                                <Users className="w-3 h-3 mr-1" />
-                                <div>
-                                  <div className="text-sm font-medium">{grievance.assignedTo.name}</div>
-                                  <div className="text-xs text-gray-500">{grievance.assignedTo.role}</div>
-                                </div>
-                              </div>
-                            ) : (
-                              <Badge variant="secondary">Unassigned</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={getStatusColor(grievance.status)} 
-                                   onClick={() => {
-                                     setSelectedStatus(grievance.status)
-                                     setSelectedCategory("all")
-                                     setSelectedPriority("all")
-                                   }}
-                                   style={{ cursor: 'pointer' }}
-                                   title="Click to filter by this status">
-                              {grievance.status}
+                            <Badge className={item.status === 'Resolved' || item.status === 'Completed' ? 'bg-green-100 text-green-800' : 
+                                            item.status === 'In Progress' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'}>
+                              {item.status}
                             </Badge>
                           </TableCell>
-                          <TableCell>
-                            <Badge className={getPriorityColor(grievance.priority)}
-                                   onClick={() => {
-                                     setSelectedPriority(grievance.priority)
-                                     setSelectedCategory("all")
-                                     setSelectedStatus("all")
-                                   }}
-                                   style={{ cursor: 'pointer' }}
-                                   title="Click to filter by this priority">
-                              {grievance.priority}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-1">
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => {
-                                  setSelectedItem({ ...grievance, type: 'grievance' })
-                                  setAssignDialogOpen(true)
-                                }}
-                                disabled={!!grievance.assignedTo}
-                              >
-                                <UserPlus className="w-3 h-3" />
-                              </Button>
-                              <Button size="sm" variant="outline">
-                                <Eye className="w-3 h-3" />
-                              </Button>
-                            </div>
-                          </TableCell>
+                          <TableCell>{item.assignedTo}</TableCell>
                         </TableRow>
-                      )) || []}
+                      ))}
                     </TableBody>
                   </Table>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+                </CardContent>
+              </Card>
+            )}
+          </div>
 
-          <TabsContent value="projects">
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Interactive Calendar */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>Government Projects</span>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm">
-                      <Download className="w-4 h-4 mr-2" />
-                      Export
-                    </Button>
+                <CardTitle className="flex items-center">
+                  <Calendar className="w-5 h-5 mr-2" />
+                  Interactive Event Calendar
+                </CardTitle>
+                <div className="text-sm text-gray-600 mt-2">
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 bg-green-500 rounded mr-2"></div>
+                      <span>Marriage</span>
+                    </div>
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 bg-yellow-500 rounded mr-2"></div>
+                      <span>Meeting</span>
+                    </div>
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 bg-blue-500 rounded mr-2"></div>
+                      <span>Other</span>
+                    </div>
                   </div>
+                  <p className="text-xs mt-2">Click on any date to view and assign events</p>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <EventCalendar />
+              </CardContent>
+            </Card>
+
+            {/* AI Assistant - Always Show */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <MessageCircle className="w-5 h-5 mr-2" />
+                  {t.aiAssistant}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Reference</TableHead>
-                      <TableHead>Project Name</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Budget</TableHead>
-                      <TableHead>Assigned To</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {dashboardData.projects?.map((project: any) => (
-                      <TableRow key={project.id} className="hover:bg-gray-50">
-                        <TableCell className="font-mono text-sm">{project.referenceNumber}</TableCell>
-                        <TableCell className="font-medium">{project.projectName}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center">
-                            <MapPin className="w-3 h-3 mr-1" />
-                            {project.village || project.district}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={getStatusColor(project.status)}>
-                            {project.status.replace('_', ' ')}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>₹{(project.estimatedCost || 0).toLocaleString()}</TableCell>
-                        <TableCell>
-                          {project.assignedTo ? (
-                            <div className="flex items-center">
-                              <Users className="w-3 h-3 mr-1" />
-                              {project.assignedTo.name}
-                            </div>
-                          ) : (
-                            <Badge variant="secondary">Unassigned</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => {
-                                setSelectedItem({ ...project, type: 'project' })
-                                setAssignDialogOpen(true)
-                              }}
-                            >
-                              <UserPlus className="w-3 h-3" />
-                            </Button>
-                            <Button size="sm" variant="outline">
-                              <Eye className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )) || []}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="visitors">
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Visitors</CardTitle>
-              </CardHeader>
-              <CardContent>
                 <div className="space-y-4">
-                  {dashboardData.recentVisitors?.map((visitor: any) => (
-                    <div key={visitor.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                          <Users className="w-5 h-5 text-blue-600" />
-                        </div>
-                        <div>
-                          <div className="font-medium">{visitor.visitorName}</div>
-                          <div className="text-sm text-gray-500">{visitor.purpose}</div>
-                          <div className="text-xs text-gray-400">
-                            {new Date(visitor.visitDate).toLocaleDateString()}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        {visitor.grievance && (
-                          <div className="text-sm">
-                            <span className="font-mono">{visitor.grievance.referenceNumber}</span>
-                            <Badge className={`ml-2 ${getStatusColor(visitor.grievance.status)}`}>
-                              {visitor.grievance.status}
-                            </Badge>
-                          </div>
-                        )}
-                        {visitor.project && (
-                          <div className="text-sm">
-                            <span className="font-mono">{visitor.project.referenceNumber}</span>
-                            <Badge className={`ml-2 ${getStatusColor(visitor.project.status)}`}>
-                              {visitor.project.status}
-                            </Badge>
-                          </div>
-                        )}
-                      </div>
+                  <Textarea
+                    placeholder={t.askQuestion}
+                    value={aiQuery}
+                    onChange={(e) => setAiQuery(e.target.value)}
+                    rows={3}
+                  />
+                  <div className="flex space-x-2">
+                    <Button onClick={handleAIQuery} size="sm" className="flex-1">
+                      <Send className="w-4 h-4 mr-2" />
+                      {t.send}
+                    </Button>
+                    <Button onClick={() => { setAiQuery(''); setAiResponse(''); }} variant="outline" size="sm">
+                      {t.clear}
+                    </Button>
+                  </div>
+                  {aiResponse && (
+                    <div className="p-3 bg-blue-50 rounded-lg border-l-4 border-blue-500">
+                      <p className="text-sm text-gray-700">{aiResponse}</p>
                     </div>
-                  )) || (
-                    <div className="text-center py-8 text-gray-500">
-                      <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>No recent visitors</p>
+                  )}
+                  {!aiResponse && (
+                    <div className="p-3 bg-gray-50 rounded-lg">
+                      <p className="text-xs text-gray-600">
+                        ✨ Ask me about:<br/>
+                        • Grievance statistics<br/>
+                        • Project updates<br/>
+                        • Calendar events<br/>
+                        • District information
+                      </p>
                     </div>
                   )}
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          </div>
+        </div>
+      </div>
 
-          <TabsContent value="assignments">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Unassigned Items</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="p-3 bg-red-50 rounded cursor-pointer" 
-                         onClick={() => {
-                           setSelectedPriority("URGENT")
-                           setSelectedStatus("PENDING")
-                           setActiveTab("grievances")
-                         }}>
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium">Urgent Grievances</span>
-                        <Badge variant="destructive">
-                          {dashboardData.grievances?.filter((g: any) => !g.assignedTo && g.priority === 'URGENT').length || 0}
-                        </Badge>
-                      </div>
-                      <div className="text-xs text-gray-600 mt-1">Needs immediate attention</div>
-                    </div>
-                    
-                    <div className="p-3 bg-orange-50 rounded cursor-pointer"
-                         onClick={() => {
-                           setSelectedStatus("PENDING")
-                           setActiveTab("grievances")
-                         }}>
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium">Unassigned Grievances</span>
-                        <Badge variant="outline">
-                          {dashboardData.grievances?.filter((g: any) => !g.assignedTo).length || 0}
-                        </Badge>
-                      </div>
-                      <div className="text-xs text-gray-600 mt-1">Awaiting assignment</div>
-                    </div>
-                    
-                    <div className="p-3 bg-blue-50 rounded cursor-pointer"
-                         onClick={() => setActiveTab("projects")}>
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium">Unassigned Projects</span>
-                        <Badge variant="outline">
-                          {dashboardData.projects?.filter((p: any) => !p.assignedTo).length || 0}
-                        </Badge>
-                      </div>
-                      <div className="text-xs text-gray-600 mt-1">Awaiting assignment</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Team Workload</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {availableUsers.map((user: any) => (
-                      <div key={user.id} className="flex justify-between items-center p-3 border rounded hover:bg-gray-50">
-                        <div>
-                          <div className="font-medium">{user.name}</div>
-                          <div className="text-sm text-gray-500">{user.role}</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm font-medium">
-                            {dashboardData.workload?.[user.id] || Math.floor(Math.random() * 10) + 1} tasks
-                          </div>
-                          <div className="text-xs text-gray-500">assigned</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle>Bulk Assignment</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <Button className="w-full" variant="outline">
-                      Auto-assign by Location
-                    </Button>
-                    <Button className="w-full" variant="outline">
-                      Auto-assign by Category
-                    </Button>
-                    <Button className="w-full" variant="outline">
-                      Auto-assign by Workload
-                    </Button>
-                    <Button className="w-full" variant="outline">
-                      Manual Bulk Assignment
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+      {/* Assignment Modal */}
+      {showAssignModal && selectedEvent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div className="p-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-900">Assign Event</h3>
             </div>
-          </TabsContent>
-
-          <TabsContent value="reports">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Generate Reports</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <Button className="w-full justify-start" variant="outline">
-                      <Download className="w-4 h-4 mr-2" />
-                      Grievances Summary Report
-                    </Button>
-                    <Button className="w-full justify-start" variant="outline">
-                      <Download className="w-4 h-4 mr-2" />
-                      Projects Status Report
-                    </Button>
-                    <Button className="w-full justify-start" variant="outline">
-                      <Download className="w-4 h-4 mr-2" />
-                      Performance Analytics
-                    </Button>
-                    <Button className="w-full justify-start" variant="outline">
-                      <Download className="w-4 h-4 mr-2" />
-                      Visitor Log Report
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Quick Stats</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span>Resolution Rate</span>
-                      <span className="font-bold text-green-600">
-                        {dashboardData.stats?.grievances?.total ? 
-                          Math.round((dashboardData.stats.grievances.resolved / dashboardData.stats.grievances.total) * 100) : 0}%
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Avg Response Time</span>
-                      <span className="font-bold">2.3 days</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Project Completion</span>
-                      <span className="font-bold text-blue-600">
-                        {dashboardData.stats?.projects?.total ? 
-                          Math.round(((dashboardData.stats.projects.total - dashboardData.stats.projects.ongoing) / dashboardData.stats.projects.total) * 100) : 0}%
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-        </Tabs>
-
-        {/* Assignment Dialog */}
-        <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Assign {selectedItem?.type}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              {selectedItem && (
-                <div className="p-4 bg-gray-50 rounded">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <div className="font-medium">
-                        {selectedItem.type === 'grievance' ? selectedItem.title : selectedItem.projectName}
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        Ref: {selectedItem.referenceNumber}
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        Requester: {selectedItem.requesterName}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-gray-600">
-                        Location: {selectedItem.village || selectedItem.mandal || selectedItem.district || 'N/A'}
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        Category: {selectedItem.grievanceCategory || selectedItem.category || 'N/A'}
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        Priority: <Badge className={getPriorityColor(selectedItem.priority)}>{selectedItem.priority}</Badge>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              <div>
-                <label className="block text-sm font-medium mb-2">Assign to:</label>
-                <Select onValueChange={(value) => {
-                  if (selectedItem) {
-                    handleAssignment(selectedItem.type, selectedItem.id, value)
-                  }
-                }}>
-                  <SelectTrigger>
+            <div className="p-4">
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 mb-2">Event: <strong className="text-gray-900">{selectedEvent.title}</strong></p>
+                <p className="text-sm text-gray-600 mb-4">Time: <strong className="text-gray-900">{selectedEvent.date && `${selectedEvent.date} `}{selectedEvent.time}</strong></p>
+                <Select>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select team member" />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableUsers.map((user: any) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        <div className="flex items-center justify-between w-full">
-                          <div>
-                            <div className="font-medium">{user.name}</div>
-                            <div className="text-xs text-gray-500">{user.email}</div>
-                          </div>
-                          <div className="text-right">
-                            <Badge variant="outline" className="ml-2">{user.role}</Badge>
-                            <div className="text-xs text-gray-500">
-                              {dashboardData.workload?.[user.id] || Math.floor(Math.random() * 10) + 1} tasks
-                            </div>
-                          </div>
-                        </div>
+                    {teamMembers.map((member) => (
+                      <SelectItem key={member.id} value={member.name}>
+                        {member.name} - {member.role}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+            <div className="p-4 border-t bg-gray-50">
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button 
+                  onClick={() => {
+                    setShowAssignModal(false)
+                    setSelectedEvent(null)
+                  }}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={() => {
+                    // Here you would update the event assignment
+                    setShowAssignModal(false)
+                    setSelectedEvent(null)
+                  }}
+                  className="flex-1"
+                >
+                  Assign
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

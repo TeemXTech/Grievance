@@ -1,14 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useSession } from "next-auth/react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { GovernmentHeader } from "@/components/ui/government-header"
 import { MapPin, Clock, CheckCircle, AlertCircle, Camera, Upload } from "lucide-react"
 
 
@@ -29,7 +27,6 @@ type Task = {
 };
 
 export default function FieldOfficerDashboard() {
-  const { data: session } = useSession();
   const [assignedTasks, setAssignedTasks] = useState<Task[]>([]);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [statusUpdate, setStatusUpdate] = useState("");
@@ -113,12 +110,16 @@ export default function FieldOfficerDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <GovernmentHeader
-        title="Field Officer Dashboard"
-        description="Task Management & Field Updates"
-        userName={session?.user?.name}
-        userRole={session?.user?.role}
-      />
+      <div className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Field Officer Dashboard</h1>
+              <p className="text-gray-600">Task Management & Field Updates</p>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Quick Stats */}
