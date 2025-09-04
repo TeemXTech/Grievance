@@ -70,43 +70,27 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 rounded-full overflow-hidden bg-white/20 flex items-center justify-center">
-                <img 
-                  src="/minister-photo.jpg" 
-                  alt="Shri D. Sridhar Babu - IT Minister" 
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMzIiIGN5PSIzMiIgcj0iMzIiIGZpbGw9IiNGRkZGRkYiIGZpbGwtb3BhY2l0eT0iMC4yIi8+CjxwYXRoIGQ9Ik0zMiA0MEMzNi40MTgzIDQwIDQwIDM2LjQxODMgNDAgMzJDNDAgMjcuNTgxNyAzNi40MTgzIDI0IDMyIDI0QzI3LjU4MTcgMjQgMjQgMjcuNTgxNyAyNCAzMkMyNCAzNi40MTgzIDI3LjU4MTcgNDAgMzIgNDBaIiBmaWxsPSIjRkZGRkZGIiBmaWxsLW9wYWNpdHk9IjAuOCIvPgo8L3N2Zz4K'
-                  }}
-                />
+              <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-red-600 rounded-lg flex items-center justify-center">
+                <Shield className="w-8 h-8 text-white" />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-white">Government of Telangana</h1>
                 <p className="text-sm text-blue-200">Digital Governance Portal</p>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 bg-white/10 rounded-lg flex items-center justify-center">
-                <img 
-                  src="/telangana-logo.png" 
-                  alt="Telangana Government Logo" 
-                  className="w-12 h-12 object-contain"
-                />
-              </div>
-              <div className="flex gap-3">
-                <Button 
-                  onClick={handleDemoClick}
-                  className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
-                >
-                  Demo Login
-                </Button>
-                <Button 
-                  onClick={() => setShowLogin(!showLogin)}
-                  className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
-                >
-                  Staff Login
-                </Button>
-              </div>
+            <div className="flex gap-3">
+              <Button 
+                onClick={handleDemoClick}
+                className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
+              >
+                Demo Login
+              </Button>
+              <Button 
+                onClick={() => setShowLogin(!showLogin)}
+                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+              >
+                Staff Login
+              </Button>
             </div>
           </div>
         </div>
@@ -175,22 +159,12 @@ export default function HomePage() {
                 <CardContent className="p-0">
                   {/* Minister Photo */}
                   <div className="relative h-80 bg-gradient-to-br from-blue-600 to-purple-700 flex items-center justify-center">
-                    <div className="w-48 h-48 bg-white/20 rounded-full flex items-center justify-center overflow-hidden">
-                      <img 
-                        src="/minister-photo.jpg" 
-                        alt="Shri D. Sridhar Babu" 
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none'
-                          e.currentTarget.nextElementSibling?.classList.remove('hidden')
-                        }}
-                      />
-                      <Users className="w-24 h-24 text-white/80 hidden" />
+                    <div className="w-48 h-48 bg-white/20 rounded-full flex items-center justify-center">
+                      <Users className="w-24 h-24 text-white/80" />
                     </div>
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-6">
-                      <h3 className="text-2xl font-bold text-white mb-1">Hon'ble IT Minister</h3>
-                      <p className="text-blue-200">Shri D. Sridhar Babu</p>
-                      <p className="text-blue-300 text-sm">IT, Electronics & Communications</p>
+                      <h3 className="text-2xl font-bold text-white mb-1">Hon'ble Chief Minister</h3>
+                      <p className="text-blue-200">Sri A. Revanth Reddy</p>
                     </div>
                   </div>
                   
@@ -198,27 +172,27 @@ export default function HomePage() {
                   <div className="p-6 text-white">
                     <div className="grid grid-cols-2 gap-4 mb-6">
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-blue-300 mb-1">15+</div>
-                        <div className="text-sm text-gray-300">Years Experience</div>
+                        <div className="text-2xl font-bold text-blue-300 mb-1">4+</div>
+                        <div className="text-sm text-gray-300">Years in Office</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-green-300 mb-1">50+</div>
-                        <div className="text-sm text-gray-300">IT Initiatives</div>
+                        <div className="text-2xl font-bold text-green-300 mb-1">125+</div>
+                        <div className="text-sm text-gray-300">Initiatives Launched</div>
                       </div>
                     </div>
                     
                     <div className="space-y-3 text-sm">
                       <div className="flex items-center">
                         <CheckCircle className="w-4 h-4 text-green-400 mr-2" />
-                        <span className="text-gray-300">Digital Transformation Leader</span>
+                        <span className="text-gray-300">Digital Governance Champion</span>
                       </div>
                       <div className="flex items-center">
                         <CheckCircle className="w-4 h-4 text-green-400 mr-2" />
-                        <span className="text-gray-300">IT Infrastructure Modernization</span>
+                        <span className="text-gray-300">Citizen-Centric Administration</span>
                       </div>
                       <div className="flex items-center">
                         <CheckCircle className="w-4 h-4 text-green-400 mr-2" />
-                        <span className="text-gray-300">E-Governance Pioneer</span>
+                        <span className="text-gray-300">Transparent Governance</span>
                       </div>
                     </div>
                   </div>

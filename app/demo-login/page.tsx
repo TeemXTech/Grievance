@@ -102,17 +102,30 @@ export default function DemoLoginPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-red-600 rounded-lg flex items-center justify-center">
-                <Shield className="w-8 h-8 text-white" />
+              <div className="w-16 h-16 rounded-full overflow-hidden bg-white/20 flex items-center justify-center">
+                <img 
+                  src="https://images.news18.com/ibnlive/uploads/2023/12/d-sridhar-babu-2023-12-7f4b8b8c8b8c8b8c8b8c8b8c8b8c8b8c.jpg" 
+                  alt="Shri D. Sridhar Babu - IT Minister" 
+                  className="w-full h-full object-cover"
+                />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-white">Government of Telangana</h1>
                 <p className="text-sm text-blue-200">Demo Login Portal</p>
               </div>
             </div>
-            <div className="text-right">
-              <div className="text-lg font-semibold text-orange-400">Demo Mode</div>
-              <div className="text-sm text-blue-300">One-Click Access</div>
+            <div className="flex items-center space-x-4">
+              <div className="w-16 h-16 bg-white/10 rounded-lg flex items-center justify-center">
+                <img 
+                  src="/telangana-logo.png" 
+                  alt="Telangana Logo" 
+                  className="w-12 h-12 object-contain"
+                />
+              </div>
+              <div className="text-right">
+                <div className="text-lg font-semibold text-orange-400">Demo Mode</div>
+                <div className="text-sm text-blue-300">One-Click Access</div>
+              </div>
             </div>
           </div>
         </div>

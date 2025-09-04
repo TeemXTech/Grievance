@@ -4,7 +4,7 @@ const nextConfig = {
     serverComponentsExternalPackages: ['@prisma/client'],
   },
   images: {
-    domains: ["localhost"],
+    domains: ["localhost", "lh3.googleusercontent.com", "drive.google.com", "images.unsplash.com"],
     unoptimized: true,
   },
   env: {

@@ -1,46 +1,42 @@
 const { spawn } = require('child_process');
-const fs = require('fs');
 
 console.log('🚀 Quick Start Script for Grievance Management System');
 console.log('================================================');
 
-// Check if we can start the application
-async function quickStart() {
-  try {
-    // First, let's try to install TypeScript
-    console.log('📦 Installing TypeScript...');
-    const installTS = spawn('npm', ['install', 'typescript', '--save-dev', '--legacy-peer-deps'], {
-      stdio: 'inherit',
-      shell: true
-    });
+function runCommand(command, args) {
+  return new Promise((resolve, reject) => {
+    const process = spawn(command, args, { stdio: 'inherit', shell: true });
 
-    installTS.on('close', (code) => {
+    process.on('close', (code) => {
       if (code === 0) {
-        console.log('✅ TypeScript installed successfully');
-        
-        // Now try to start Next.js
-        console.log('🌟 Starting Next.js application...');
-        const nextDev = spawn('npx', ['next', 'dev', '-p', '3000'], {
-          stdio: 'inherit',
-          shell: true
-        });
-
-        nextDev.on('close', (code) => {
-          console.log(`Next.js process exited with code ${code}`);
-        });
-
+        resolve();
       } else {
-        console.log('❌ TypeScript installation failed');
-        console.log('💡 Try manual installation: npm install typescript --save-dev --legacy-peer-deps');
+        reject(new Error(`Command "${command} ${args.join(' ')}" failed with code ${code}`));
       }
     });
 
+    process.on('error', (err) => {
+      reject(err);
+    });
+  });
+}
+
+async function quickStart() {
+  try {
+    // This step was in the original script to solve potential setup issues.
+    console.log('📦 Ensuring TypeScript is installed (a necessary check)...');
+    await runCommand('npm', ['install', 'typescript', '--save-dev', '--legacy-peer-deps']);
+    console.log('✅ TypeScript check passed.');
+    
+    console.log('🌟 Starting Next.js application on port 4000...');
+    // Using port 4000 as an alternative to avoid common conflicts
+    await runCommand('npx', ['next', 'dev', '-p', '4000']);
   } catch (error) {
     console.error('❌ Error starting application:', error.message);
-    console.log('\n🔧 Manual Steps:');
-    console.log('1. npm install typescript --save-dev --legacy-peer-deps');
-    console.log('2. npx next dev');
-    console.log('3. Open http://localhost:3000');
+    console.log('\n🔧 If the script fails, please try these manual steps:');
+    console.log('1. Run `npm install --legacy-peer-deps`');
+    console.log('2. Run `npm run dev`');
+    console.log('3. Open http://localhost:3000 (or the port you configured)');
   }
 }
 
