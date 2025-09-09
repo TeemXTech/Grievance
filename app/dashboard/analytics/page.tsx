@@ -82,6 +82,129 @@ interface AnalyticsData {
   }>
 }
 
+const analyticsDataSample: AnalyticsData = {
+  period: {
+    year: 2025,
+    constituency: "South Zone",
+    district: "Greenfield",
+  },
+  kpis: {
+    totalGrievances: 1245,
+    totalEstimatedCost: 9750000,
+    criticalGrievances: 245,
+    overdueGrievances: 312,
+    resolvedGrievances: 987,
+    resolutionRate: "79.3%",
+    averageResolutionTime: "5 days",
+  },
+  distributions: {
+    status: {
+      Open: 345,
+      "In Progress": 212,
+      Resolved: 987,
+      Overdue: 103,
+    },
+    priority: {
+      High: 412,
+      Medium: 532,
+      Low: 301,
+    },
+    category: [
+      { categoryName: "Road Repair", categoryColor: "#FF5733", count: 345 },
+      { categoryName: "Water Supply", categoryColor: "#33C1FF", count: 212 },
+      { categoryName: "Electricity", categoryColor: "#FFC300", count: 189 },
+    ],
+    district: [
+      {
+        district: "Greenfield",
+        grievanceCount: 600,
+        totalCost: 5200000,
+      },
+      {
+        district: "Hilltown",
+        grievanceCount: 400,
+        totalCost: 3100000,
+      },
+      {
+        district: "Riverbend",
+        grievanceCount: 245,
+        totalCost: 1450000,
+      },
+    ],
+  },
+  trends: {
+    monthly: [
+      { month: "January", count: 110, total_cost: 900000, resolved_count: 90 },
+      { month: "February", count: 95, total_cost: 850000, resolved_count: 80 },
+      { month: "March", count: 120, total_cost: 920000, resolved_count: 100 },
+      { month: "April", count: 130, total_cost: 970000, resolved_count: 115 },
+      { month: "May", count: 140, total_cost: 1020000, resolved_count: 120 },
+      { month: "June", count: 115, total_cost: 890000, resolved_count: 100 },
+    ],
+  },
+  recentActivity: {
+    recentGrievances: [
+      {
+        id: "grv001",
+        referenceNumber: "REF123456",
+        title: "Potholes on Main Street",
+        status: "Open",
+        priority: "High",
+        category: "Road Repair",
+        assignedTo: "John Doe",
+        assignedToPhone: "+911234567890",
+        createdAt: "2025-09-01T10:30:00Z",
+      },
+      {
+        id: "grv002",
+        referenceNumber: "REF123457",
+        title: "Frequent water cuts",
+        status: "In Progress",
+        priority: "Medium",
+        category: "Water Supply",
+        assignedTo: "Jane Smith",
+        assignedToPhone: "+919876543210",
+        createdAt: "2025-09-02T14:15:00Z",
+      },
+      {
+        id: "grv003",
+        referenceNumber: "REF123458",
+        title: "Broken streetlights",
+        status: "Resolved",
+        priority: "Low",
+        category: "Electricity",
+        assignedTo: "Anil Kumar",
+        assignedToPhone: "+919812345678",
+        createdAt: "2025-09-03T09:00:00Z",
+      },
+    ],
+  },
+  officerWorkload: [
+    {
+      officerName: "John Doe",
+      officerPhone: "+911234567890",
+      officerEmail: "john.doe@example.gov",
+      officerRole: "Engineer",
+      grievanceCount: 123,
+    },
+    {
+      officerName: "Jane Smith",
+      officerPhone: "+919876543210",
+      officerEmail: "jane.smith@example.gov",
+      officerRole: "Water Supply Officer",
+      grievanceCount: 98,
+    },
+    {
+      officerName: "Anil Kumar",
+      officerPhone: "+919812345678",
+      officerEmail: "anil.kumar@example.gov",
+      officerRole: "Electricity Dept",
+      grievanceCount: 145,
+    },
+  ],
+};
+
+
 interface MandalData {
   mandal: string
   totalGrievances: number
@@ -105,7 +228,9 @@ export default function AnalyticsPage() {
   const searchParams = useSearchParams()
   const constituency = searchParams.get("constituency")
   const district = searchParams.get("district")
-  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null)
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(
+    analyticsDataSample
+  );
   const [mandalData, setMandalData] = useState<MandalData[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("overview")
@@ -122,7 +247,7 @@ export default function AnalyticsPage() {
       const analyticsUrl = `/api/analytics/dashboard?${constituency ? `constituency=${constituency}` : ''}${district ? `&district=${district}` : ''}`
       const analyticsResponse = await fetch(analyticsUrl)
       const analytics = await analyticsResponse.json()
-      setAnalyticsData(analytics)
+      // setAnalyticsData(analytics)
 
       // Fetch mandal-level data
       const mandalUrl = `/api/analytics/aggregated?groupBy=mandal&${constituency ? `constituency=${constituency}` : ''}${district ? `&district=${district}` : ''}`
@@ -222,7 +347,7 @@ export default function AnalyticsPage() {
                 {district ? `${district} District` : 'Telangana'} Analytics
               </h1>
               <p className="text-gray-600">
-                {constituency && `Constituency: ${constituency}`} • Year: {analyticsData.period.year}
+                {constituency && `Constituency: ${constituency}`} • Year: {analyticsData?.period?.year}
               </p>
             </div>
           </div>
@@ -245,7 +370,7 @@ export default function AnalyticsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Total Grievances</p>
-                  <p className="text-2xl font-bold text-gray-900">{analyticsData.kpis.totalGrievances}</p>
+                  <p className="text-2xl font-bold text-gray-900">{analyticsData?.kpis?.totalGrievances}</p>
                 </div>
                 <FileText className="h-8 w-8 text-blue-600" />
               </div>
@@ -257,7 +382,7 @@ export default function AnalyticsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Resolution Rate</p>
-                  <p className="text-2xl font-bold text-green-600">{analyticsData.kpis.resolutionRate}%</p>
+                  <p className="text-2xl font-bold text-green-600">{analyticsData?.kpis?.resolutionRate}%</p>
                 </div>
                 <CheckCircle className="h-8 w-8 text-green-600" />
               </div>
@@ -269,7 +394,7 @@ export default function AnalyticsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Critical Issues</p>
-                  <p className="text-2xl font-bold text-red-600">{analyticsData.kpis.criticalGrievances}</p>
+                  <p className="text-2xl font-bold text-red-600">{analyticsData?.kpis?.criticalGrievances}</p>
                 </div>
                 <AlertTriangle className="h-8 w-8 text-red-600" />
               </div>
@@ -281,7 +406,7 @@ export default function AnalyticsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Total Cost</p>
-                  <p className="text-2xl font-bold text-gray-900">{formatCurrency(analyticsData.kpis.totalEstimatedCost)}</p>
+                  <p className="text-2xl font-bold text-gray-900">{formatCurrency(analyticsData?.kpis?.totalEstimatedCost)}</p>
                 </div>
                 <TrendingUp className="h-8 w-8 text-purple-600" />
               </div>
@@ -307,7 +432,7 @@ export default function AnalyticsPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {Object.entries(analyticsData.distributions.status).map(([status, count]) => (
+                    {Object.entries(analyticsData?.distributions?.status||{}).map(([status, count]) => (
                       <div key={status} className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
                           <div className={`w-3 h-3 rounded-full ${getStatusColor(status).split(' ')[0]}`}></div>
@@ -315,7 +440,7 @@ export default function AnalyticsPage() {
                         </div>
                         <div className="flex items-center space-x-2">
                           <Progress 
-                            value={(count / analyticsData.kpis.totalGrievances) * 100} 
+                            value={(count / analyticsData?.kpis?.totalGrievances) * 100} 
                             className="w-20"
                           />
                           <span className="text-sm font-semibold">{count}</span>
@@ -333,7 +458,7 @@ export default function AnalyticsPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {analyticsData.distributions.category.map((category) => (
+                    {(analyticsData?.distributions?.category||[]).map((category) => (
                       <div key={category.categoryName} className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
                           <div 
@@ -368,7 +493,7 @@ export default function AnalyticsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {analyticsData.recentActivity.recentGrievances.map((grievance) => (
+                    {(analyticsData?.recentActivity?.recentGrievances||[]).map((grievance) => (
                       <TableRow key={grievance.id}>
                         <TableCell className="font-mono text-sm">{grievance.referenceNumber}</TableCell>
                         <TableCell className="font-medium">{grievance.title}</TableCell>
@@ -446,7 +571,7 @@ export default function AnalyticsPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {analyticsData.trends.monthly.map((month) => (
+                  {(analyticsData?.trends?.monthly||[]).map((month) => (
                     <div key={month.month} className="flex items-center justify-between p-4 border rounded-lg">
                       <div>
                         <h4 className="font-medium">{new Date(month.month).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</h4>
@@ -472,7 +597,7 @@ export default function AnalyticsPage() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {analyticsData.officerWorkload.map((officer) => (
+                  {((analyticsData?.officerWorkload||{})).map((officer) => (
                     <Card key={officer.officerName} className="p-4">
                       <div className="flex items-center space-x-3">
                         <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">

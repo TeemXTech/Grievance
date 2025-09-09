@@ -1,6 +1,6 @@
-import NextAuth, { type NextAuthOptions } from "next-auth"
-import CredentialsProvider from "next-auth/providers/credentials"
-import axios from "axios"
+import NextAuth, { type NextAuthOptions } from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
+import axios from "axios";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -12,16 +12,19 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.phone || !credentials?.password) {
-          return null
+          return null;
         }
 
         try {
-          const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
-            phone: credentials.phone,
-            password: credentials.password,
-          })
+          const response = await axios.post(
+            `${process.env.NEXT_PUBLIC_API_URL}/auth/login`,
+            {
+              phone: credentials.phone,
+              password: credentials.password,
+            }
+          );
 
-          const { access_token, user } = response.data
+          const { access_token, user } = response.data;
 
           if (access_token && user) {
             return {
@@ -32,13 +35,13 @@ export const authOptions: NextAuthOptions = {
               role: user.role,
               language_pref: user.language_pref,
               accessToken: access_token,
-            }
+            };
           }
 
-          return null
+          return null;
         } catch (error) {
-          console.error("Authentication error:", error)
-          return null
+          console.error("Authentication error:", error);
+          return null;
         }
       },
     }),
@@ -46,19 +49,19 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.accessToken = user.accessToken
-        token.role = user.role
-        token.phone = user.phone
-        token.language_pref = user.language_pref
+        token.accessToken = user.accessToken;
+        token.role = user.role.name;
+        token.phone = user.phone;
+        token.language_pref = user.language_pref;
       }
-      return token
+      return token;
     },
     async session({ session, token }) {
-      session.accessToken = token.accessToken as string
-      session.user.role = token.role as string
-      session.user.phone = token.phone as string
-      session.user.language_pref = token.language_pref as string
-      return session
+      session.accessToken = token.accessToken as string;
+      session.user.role.name = token.role as string;
+      session.user.phone = token.phone as string;
+      session.user.language_pref = token.language_pref as string;
+      return session;
     },
   },
   pages: {
@@ -67,7 +70,7 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
   },
-}
+};
 
-const handler = NextAuth(authOptions)
-export { handler as GET, handler as POST }
+const handler = NextAuth(authOptions);
+export { handler as GET, handler as POST };

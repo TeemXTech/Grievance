@@ -4,9 +4,103 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 
+
+  const mockCalendarEvents = {
+    today: [
+      {
+        id: 1,
+        date: "2025-01-08",
+        time: "09:00-10:30",
+        title: "Village Marriage Ceremony",
+        type: "marriage",
+        assignedTo: "PA Srinivas",
+        status: "confirmed",
+      },
+      {
+        id: 2,
+        date: "2025-01-08",
+        time: "14:00-15:30",
+        title: "Grievance Review Meeting",
+        type: "meeting",
+        assignedTo: "Field Officer Ramesh",
+        status: "pending",
+      },
+      {
+        id: 3,
+        date: "2025-01-08",
+        time: "16:30-17:30",
+        title: "Community Event",
+        type: "other",
+        assignedTo: null,
+        status: "unassigned",
+      },
+    ],
+    week: [
+      {
+        id: 4,
+        date: "2025-01-09",
+        time: "10:00-11:30",
+        title: "District Collector Meeting",
+        type: "meeting",
+        assignedTo: "PA Srinivas",
+        status: "confirmed",
+      },
+      {
+        id: 5,
+        date: "2025-01-10",
+        time: "15:00-16:30",
+        title: "Public Hearing",
+        type: "meeting",
+        assignedTo: "Field Officer Kumar",
+        status: "confirmed",
+      },
+      {
+        id: 6,
+        date: "2025-01-11",
+        time: "11:00-12:30",
+        title: "Community Festival",
+        type: "other",
+        assignedTo: null,
+        status: "unassigned",
+      },
+    ],
+    month: [
+      {
+        id: 7,
+        date: "2025-01-15",
+        time: "09:00-10:30",
+        title: "Budget Review",
+        type: "meeting",
+        assignedTo: "PA Srinivas",
+        status: "confirmed",
+      },
+      {
+        id: 8,
+        date: "2025-01-20",
+        time: "14:00-15:30",
+        title: "School Opening Ceremony",
+        type: "other",
+        assignedTo: "Field Officer Ramesh",
+        status: "confirmed",
+      },
+      {
+        id: 9,
+        date: "2025-01-25",
+        time: "10:30-12:00",
+        title: "Road Project Launch",
+        type: "other",
+        assignedTo: null,
+        status: "unassigned",
+      },
+    ],
+  };
+
+
+
 export default function EventCalendar() {
-  const [events, setEvents] = useState([]);
-  const [selectedDateEvents, setSelectedDateEvents] = useState([]);
+  const [events, setEvents] = useState(mockCalendarEvents);
+  const [selectedDateEvents, setSelectedDateEvents] =
+    useState(mockCalendarEvents.today);
   const [modalIsOpen, setModalIsOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState("");
 
@@ -30,7 +124,7 @@ export default function EventCalendar() {
               ? "#eab308"
               : "#3b82f6"
         }));
-        setEvents(colorCodedEvents);
+        // setEvents(colorCodedEvents);
       })
       .catch(() => {
         // Fallback data if API fails
@@ -60,7 +154,7 @@ export default function EventCalendar() {
             color: "#3b82f6"
           }
         ];
-        setEvents(fallbackEvents);
+        // setEvents(fallbackEvents);
       });
   }, []);
 
@@ -69,7 +163,7 @@ export default function EventCalendar() {
     const dayEvents = events.filter(
       (e) => e.start.split("T")[0] === clickedDate
     );
-    setSelectedDateEvents(dayEvents);
+    // setSelectedDateEvents(dayEvents);
     setSelectedDate(clickedDate);
     setModalIsOpen(true);
   };
@@ -82,12 +176,12 @@ export default function EventCalendar() {
     })
     .then(() => {
       // Update local state
-      setEvents(prev => prev.map(event => 
-        event.id === eventId ? { ...event, assignedTo } : event
-      ));
-      setSelectedDateEvents(prev => prev.map(event => 
-        event.id === eventId ? { ...event, assignedTo } : event
-      ));
+      // setEvents(prev => prev.map(event => 
+      //   event.id === eventId ? { ...event, assignedTo } : event
+      // ));
+      // setSelectedDateEvents(prev => prev.map(event => 
+      //   event.id === eventId ? { ...event, assignedTo } : event
+      // ));
       alert(`Event assigned to ${assignedTo}`);
     })
     .catch(() => {
@@ -146,7 +240,7 @@ export default function EventCalendar() {
                 className="text-gray-400 hover:text-gray-600 text-2xl leading-none p-1"
                 aria-label="Close modal"
               >
-                ×
+                x
               </button>
             </div>
             
@@ -158,7 +252,7 @@ export default function EventCalendar() {
                   {selectedDateEvents.map((ev) => (
                     <div
                       key={ev.id}
-                      className="border-l-4 p-3 bg-gray-50 rounded-lg"
+                      className="border-l-4 p-3 bg-gray-50 rounded-lg mb-2"
                       style={{ borderLeftColor: ev.color }}
                     >
                       <div className="font-medium text-gray-900 mb-1">{ev.title}</div>
