@@ -42,6 +42,12 @@ const sidebarItems = [
     description: "Manage and assign grievances"
   },
   {
+    title: "Project Management", 
+    href: "/dashboard/projects",
+    icon: Users,
+    description: "Manage and assign projects"
+  },
+  {
     title: "Categories",
     href: "/dashboard/categories",
     icon: FolderOpen,
