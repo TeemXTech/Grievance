@@ -1,9 +1,13 @@
 "use client";
 
+import { useState } from "react";
+import dynamic from "next/dynamic";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   FileText,
   Clock,
@@ -17,8 +21,27 @@ import {
   MapPin,
   Phone,
   Mail,
+  Building2,
+  X,
+  Languages,
+  File,
 } from "lucide-react";
-import { useState } from "react";
+
+// Dynamically import TelanganaMap to avoid SSR issues with Leaflet
+const TelanganaMap = dynamic(() => import("../../components/TelanganaMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-[500px] bg-gray-100 rounded-lg flex items-center justify-center">Loading Map...</div>
+  ),
+});
+
+// Dynamically import EventCalendar to avoid SSR issues
+const EventCalendar = dynamic(() => import("../../components/EventCalendar"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-[400px] bg-gray-100 rounded-lg flex items-center justify-center">Loading Calendar...</div>
+  ),
+});
 
 const translations = {
   en: {
@@ -27,7 +50,6 @@ const translations = {
     projects: "Projects",
     totalGrievances: "Total Grievances",
     totalProjects: "Total Projects",
-    // pendingItems: "Pending Items", completedItems: "Completed Items",
     calendar: "Calendar",
     map: "Telangana Map",
     aiAssistant: "AI Assistant",
@@ -41,8 +63,6 @@ const translations = {
     projects: "ప్రాజెక్టులు",
     totalGrievances: "మొత్తం ఫిర్యాదులు",
     totalProjects: "మొత్తం ప్రాజెక్టులు",
-    pendingItems: "పెండింగ్ అంశలు",
-    completedItems: "పూర్తయిన అంశలు",
     calendar: "క్యాలెండర్",
     map: "తెలంగాణ మ్యాప్",
     aiAssistant: "AI సహాయకుడు",
@@ -54,13 +74,88 @@ const translations = {
 
 export default function DashboardPage() {
   const [language, setLanguage] = useState("en");
+  const [showFilteredList, setShowFilteredList] = useState(false);
+  const [dataType, setDataType] = useState("grievances");
+  const [selectedDistrict, setSelectedDistrict] = useState(null);
+  const [selectedConstituency, setSelectedConstituency] = useState(null);
 
   const t = translations[language];
 
+  // Mock data with district/constituency mapping
+  const mockGrievances = [
+    {
+      id: 1,
+      trackingNumber: "GRI-I-23-08012025",
+      title: "Road Repair Needed",
+      category: "Infrastructure",
+      status: "Pending",
+      priority: "High",
+      createdOn: "01-09-2025",
+      completedOn: "",
+      pendingSince: "9 days",
+      citizenName: "Rajesh Kumar",
+      citizenPhone: "+91-9876543210",
+      location: "Manthanani Village",
+      district: "Karimnagar",
+      constituency: "Manthanani",
+      description: "Main road has multiple potholes",
+      assignedTo: "Field Officer Ramesh",
+    },
+    {
+      id: 2,
+      trackingNumber: "GRI-H-45-07012025",
+      title: "Water Supply Issue",
+      category: "Water",
+      status: "In Progress",
+      priority: "Medium",
+      createdOn: "01-08-2025",
+      completedOn: "11-08-2025",
+      citizenName: "Sita Devi",
+      citizenPhone: "+91-9876543211",
+      location: "Ramagundam",
+      district: "Peddapalli",
+      constituency: "Ramagundam",
+      description: "Irregular water supply",
+      assignedTo: "PA Srinivas",
+    },
+  ];
+
+  const mockProjects = [
+    {
+      id: 1,
+      projectNumber: "PRJ-I-12-08012025",
+      name: "Bridge Construction",
+      category: "Infrastructure",
+      status: "In Progress",
+      projectValue: "₹0.5 Crore",
+      amountPaid: "₹0.2 Crore",
+      comission: "₹0.01 Crore",
+      startedOn: "01-09-2025",
+      completedOn: "",
+      location: "Manthanani",
+      district: "Karimnagar",
+      constituency: "Manthanani",
+      description: "New bridge construction",
+      assignedTo: "Engineer Kumar",
+      pdfIcon: <File className="h-4 w-4 mr-2"/>
+    },
+  ];
+
+  const dashboardStats = {
+    totalGrievances: mockGrievances.length,
+    totalProjects: mockProjects.length,
+    pendingItems:
+      mockGrievances.filter((g) => g.status === "Pending").length +
+      mockProjects.filter((p) => p.status === "Planning").length,
+    completedItems:
+      mockGrievances.filter((g) => g.status === "Resolved").length +
+      mockProjects.filter((p) => p.status === "Completed").length,
+  };
+
   const stats = [
     {
-      title: "Total Grievances",
-      value: "1,247",
+      title: t.totalGrievances,
+      value: dashboardStats.totalGrievances,
       change: "+12%",
       changeType: "positive",
       icon: FileText,
@@ -68,32 +163,57 @@ export default function DashboardPage() {
       bgColor: "bg-blue-100",
     },
     {
-      title: "Pending",
-      value: "89",
-      change: "-5%",
-      changeType: "negative",
-      icon: Clock,
-      color: "text-orange-600",
-      bgColor: "bg-orange-100",
-    },
-    {
-      title: "Resolved",
-      value: "1,158",
-      change: "+8%",
+      title: t.totalProjects,
+      value: dashboardStats.totalProjects,
+      change: "+5%",
       changeType: "positive",
-      icon: CheckCircle,
+      icon: Building2,
       color: "text-green-600",
       bgColor: "bg-green-100",
     },
-    {
-      title: "Active Users",
-      value: "156",
-      change: "+3%",
-      changeType: "positive",
-      icon: Users,
-      color: "text-purple-600",
-      bgColor: "bg-purple-100",
-    },
+    // {
+    //   title: "Pending",
+    //   value: "89",
+    //   change: "-5%",
+    //   changeType: "negative",
+    //   icon: Clock,
+    //   color: "text-orange-600",
+    //   bgColor: "bg-orange-100",
+    // },
+    // {
+    //   title: "Resolved",
+    //   value: "1,158",
+    //   change: "+8%",
+    //   changeType: "positive",
+    //   icon: CheckCircle,
+    //   color: "text-purple-600",
+    //   bgColor: "bg-purple-100",
+    // },
+  ];
+
+  const grievanceTableHeaders = [
+    "Title",
+    "Location",
+    "Status",
+    "Assigned To",
+    "Created On",
+    "Completed On",
+    "Pending Since",
+    "Requestor",
+    "Requestor Mobile",
+  ];
+
+  const projectTableHeaders = [
+    "Name",
+    "Location",
+    "Status",
+    "Assigned To",
+    "Started On",
+    "Completed On",
+    "Project Value",
+    "Amount Paid",
+    "Comission",
+    "File Uploads"
   ];
 
   const recentGrievances = [
@@ -137,12 +257,79 @@ export default function DashboardPage() {
     { name: "Others", count: 212, percentage: 17.0 },
   ];
 
+  const telanganaDistricts = [
+    { name: "Karimnagar", constituencies: ["Manthanani", "Karimnagar", "Choppadandi"] },
+    { name: "Peddapalli", constituencies: ["Ramagundam", "Peddapalli", "Dharmapuri"] },
+    { name: "Warangal", constituencies: ["Warangal East", "Warangal West", "Wardhanapet"] },
+  ];
+
+  const getFilteredData = () => {
+    let data = dataType === "grievances" ? mockGrievances : mockProjects;
+
+    if (selectedDistrict) {
+      data = data.filter((item) => item.district === selectedDistrict);
+    }
+    if (selectedConstituency) {
+      data = data.filter((item) => item.constituency === selectedConstituency);
+    }
+
+    return data;
+  };
+
+  const handleMapClick = (district, constituency = null) => {
+    setSelectedDistrict(district);
+    setSelectedConstituency(constituency);
+    setShowFilteredList(true);
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+      {/* Header with Language Selector */}
+      <div className="bg-white shadow-sm border-b p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-xl lg:text-2xl font-bold text-gray-900 truncate">{t.dashboard}</h1>
+            <p className="text-sm lg:text-base text-gray-600 truncate">Manthanani Constituency Management</p>
+          </div>
+          <div className="mt-4 sm:mt-0">
+            <Select value={language} onValueChange={setLanguage}>
+              <SelectTrigger className="w-28 lg:w-32">
+                <Languages className="w-4 h-4 mr-2" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="en">English</SelectItem>
+                <SelectItem value="te">తెలుగు</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
       {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
         {stats.map((stat) => (
-          <Card key={stat.title}>
+          <Card
+            key={stat.title}
+            className={`cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-[1.02] border-l-4 ${
+              stat.title === t.totalGrievances
+                ? "border-l-blue-500"
+                : stat.title === t.totalProjects
+                ? "border-l-green-500"
+                : stat.title === "Pending"
+                ? "border-l-orange-500"
+                : "border-l-purple-500"
+            }`}
+            onClick={() => {
+              if (stat.title === t.totalGrievances) {
+                setDataType("grievances");
+                setShowFilteredList(true);
+              } else if (stat.title === t.totalProjects) {
+                setDataType("projects");
+                setShowFilteredList(true);
+              }
+            }}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">{stat.title}</CardTitle>
               <div className={`p-2 rounded-lg ${stat.bgColor}`}>
@@ -160,10 +347,70 @@ export default function DashboardPage() {
         ))}
       </div>
 
+      {/* Filtered List */}
+      {showFilteredList && (
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <CardTitle>
+                {selectedConstituency || selectedDistrict || "All"} -{" "}
+                {dataType === "grievances" ? t.grievances : t.projects}
+              </CardTitle>
+              <Button onClick={() => setShowFilteredList(false)} variant="outline" size="sm">
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Requestor</TableHead>
+                  <TableHead>Requestor Mobile</TableHead>
+                  <TableHead>Created On</TableHead>
+                  <TableHead>Completed On</TableHead>
+                  <TableHead>Pending Since</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Assigned To</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {getFilteredData().map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell className="font-medium">{item.trackingNumber || item.projectNumber}</TableCell>
+                    <TableCell>{item.title || item.name}</TableCell>
+                    <TableCell>{item.citizenName || "N/A"}</TableCell>
+                    <TableCell>{item.location}</TableCell>
+                    <TableCell>
+                      <Badge
+                        className={
+                          item.status === "Resolved" || item.status === "Completed"
+                            ? "bg-green-100 text-green-800"
+                            : item.status === "In Progress"
+                            ? "bg-blue-100 text-blue-800"
+                            : "bg-orange-100 text-orange-800"
+                        }
+                      >
+                        {item.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{item.assignedTo}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Grievances */}
-        <div className="lg:col-span-2">
+        {/* Left Column: Recent Grievances and Map */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Recent Grievances */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -223,10 +470,52 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Telangana Map */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <MapPin className="w-5 h-5 mr-2" />
+                {t.map} - Interactive District View
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="bg-gradient-to-br from-green-50 to-blue-50 p-4 rounded-lg">
+                <TelanganaMap onDistrictClick={handleMapClick} />
+                {selectedDistrict && (
+                  <div className="mt-4 p-4 bg-white rounded-lg border shadow-sm">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="text-sm text-gray-600">
+                          Selected:{" "}
+                          <strong className="text-blue-600">{selectedConstituency || selectedDistrict}</strong>
+                          {selectedDistrict && ` District`}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Click on districts to view detailed information and statistics
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedDistrict(null);
+                          setSelectedConstituency(null);
+                        }}
+                      >
+                        Clear Selection
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Category Distribution */}
-        <div>
+        {/* Right Column: Category Distribution, Calendar, and Quick Actions */}
+        <div className="space-y-6">
+          {/* Category Distribution */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -250,8 +539,38 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
+          {/* Interactive Calendar */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Calendar className="w-5 h-5 mr-2" />
+                Interactive Event Calendar
+              </CardTitle>
+              <div className="text-sm text-gray-600 mt-2">
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-green-500 rounded mr-2"></div>
+                    <span>Marriage</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-yellow-500 rounded mr-2"></div>
+                    <span>Meeting</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-blue-500 rounded mr-2"></div>
+                    <span>Other</span>
+                  </div>
+                </div>
+                <p className="text-xs mt-2">Click on any date to view and assign events</p>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <EventCalendar />
+            </CardContent>
+          </Card>
+
           {/* Quick Actions */}
-          <Card className="mt-6">
+          <Card>
             <CardHeader>
               <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
