@@ -76,8 +76,8 @@ export default function DashboardPage() {
   const [language, setLanguage] = useState("en");
   const [showFilteredList, setShowFilteredList] = useState(false);
   const [dataType, setDataType] = useState("grievances");
-  const [selectedDistrict, setSelectedDistrict] = useState(null);
-  const [selectedConstituency, setSelectedConstituency] = useState(null);
+  const [selectedDistrict, setSelectedDistrict] = useState<string | null>(null);
+  const [selectedConstituency, setSelectedConstituency] = useState<string | null>(null);
   const [assignments, setAssignments] = useState({});
 
   const t = translations[language];
@@ -273,13 +273,13 @@ export default function DashboardPage() {
     return data;
   };
 
-  const handleMapClick = (district, constituency = null) => {
+  const handleMapClick = (district: string, constituency: string | null = null) => {
     setSelectedDistrict(district);
     setSelectedConstituency(constituency);
     setShowFilteredList(true);
   };
 
-  const handleAssignChange = (itemId, value) => {
+  const handleAssignChange = (itemId: number, value: string) => {
     setAssignments((prev) => ({
       ...prev,
       [itemId]: value,
@@ -295,6 +295,9 @@ export default function DashboardPage() {
       mockProjects.splice(0, mockProjects.length, ...updatedProjects);
     }
   };
+
+  // Calculate count for display
+  const filteredCount = getFilteredData().length;
 
   const columns = dataType === "grievances" ? grievanceColumns : projectColumns;
 
@@ -368,9 +371,14 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
-              <CardTitle>
+              <CardTitle className="flex items-center gap-4">
                 {selectedConstituency || selectedDistrict || "All"} -{" "}
                 {dataType === "grievances" ? t.grievances : t.projects}
+                <div className="text-sm text-gray-600 mt-2">
+                  <span>
+                    Count: <strong>{filteredCount}</strong>
+                  </span>
+                </div>
               </CardTitle>
               <Button onClick={() => setShowFilteredList(false)} variant="outline" size="sm">
                 <X className="w-4 h-4" />
