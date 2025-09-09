@@ -78,6 +78,7 @@ export default function DashboardPage() {
   const [dataType, setDataType] = useState("grievances");
   const [selectedDistrict, setSelectedDistrict] = useState(null);
   const [selectedConstituency, setSelectedConstituency] = useState(null);
+  const [assignments, setAssignments] = useState({});
 
   const t = translations[language];
 
@@ -141,6 +142,19 @@ export default function DashboardPage() {
     },
   ];
 
+  const teamMembers = [
+    "Field Officer Ramesh",
+    "PA Srinivas",
+    "Engineer Kumar",
+    "Officer Priya",
+    "Officer Anil",
+    "Officer Suresh",
+    "Officer Lakshmi",
+    "Officer Raju",
+    "Officer Meena",
+    "Officer Vijay",
+  ];
+
   const dashboardStats = {
     totalGrievances: mockGrievances.length,
     totalProjects: mockProjects.length,
@@ -171,24 +185,6 @@ export default function DashboardPage() {
       color: "text-green-600",
       bgColor: "bg-green-100",
     },
-    // {
-    //   title: "Pending",
-    //   value: "89",
-    //   change: "-5%",
-    //   changeType: "negative",
-    //   icon: Clock,
-    //   color: "text-orange-600",
-    //   bgColor: "bg-orange-100",
-    // },
-    // {
-    //   title: "Resolved",
-    //   value: "1,158",
-    //   change: "+8%",
-    //   changeType: "positive",
-    //   icon: CheckCircle,
-    //   color: "text-purple-600",
-    //   bgColor: "bg-purple-100",
-    // },
   ];
 
   const grievanceColumns = [
@@ -201,7 +197,7 @@ export default function DashboardPage() {
     { header: "Pending Since", field: "pendingSince", special: null },
     { header: "Location", field: "location", special: null },
     { header: "Status", field: "status", special: "badge" },
-    { header: "Assigned To", field: "assignedTo", special: null },
+    { header: "Assigned To", field: "assignedTo", special: "select" },
   ];
 
   const projectColumns = [
@@ -214,8 +210,7 @@ export default function DashboardPage() {
     { header: "Comission", field: "comission", special: null },
     { header: "Location", field: "location", special: null },
     { header: "Status", field: "status", special: "badge" },
-    { header: "Assigned To", field: "assignedTo", special: null },
-    // { header: "File Uploads", field: "pdfIcon", special: "icon" },
+    { header: "Assigned To", field: "assignedTo", special: "select" },
   ];
 
   const recentGrievances = [
@@ -282,6 +277,25 @@ export default function DashboardPage() {
     setSelectedDistrict(district);
     setSelectedConstituency(constituency);
     setShowFilteredList(true);
+  };
+
+  const handleAssignChange = (itemId, value) => {
+    setAssignments((prev) => ({
+      ...prev,
+      [itemId]: value,
+    }));
+    // Update the mock data (in a real app, this would typically involve an API call)
+    if (dataType === "grievances") {
+      const updatedGrievances = mockGrievances.map((item) =>
+        item.id === itemId ? { ...item, assignedTo: value } : item
+      );
+      mockGrievances.splice(0, mockGrievances.length, ...updatedGrievances);
+    } else {
+      const updatedProjects = mockProjects.map((item) =>
+        item.id === itemId ? { ...item, assignedTo: value } : item
+      );
+      mockProjects.splice(0, mockProjects.length, ...updatedProjects);
+    }
   };
 
   const columns = dataType === "grievances" ? grievanceColumns : projectColumns;
@@ -391,8 +405,22 @@ export default function DashboardPage() {
                           >
                             {item[col.field]}
                           </Badge>
-                        ) : col.special === "icon" ? (
-                          item[col.field] || "N/A"
+                        ) : col.special === "select" ? (
+                          <Select
+                            value={assignments[item.id] || item[col.field] || ""}
+                            onValueChange={(value) => handleAssignChange(item.id, value)}
+                          >
+                            <SelectTrigger className="w-[180px]">
+                              <SelectValue placeholder="Select assignee" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {teamMembers.map((member) => (
+                                <SelectItem key={member} value={member}>
+                                  {member}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         ) : (
                           item[col.field] || "N/A"
                         )}
