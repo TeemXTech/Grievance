@@ -53,12 +53,12 @@ const sidebarItems = [
     icon: FolderOpen,
     description: "Category & sub-category management"
   },
-  {
-    title: "Analytics",
-    href: "/dashboard/analytics",
-    icon: BarChart3,
-    description: "Performance metrics and insights"
-  },
+  // {
+  //   title: "Analytics",
+  //   href: "/dashboard/analytics",
+  //   icon: BarChart3,
+  //   description: "Performance metrics and insights"
+  // },
   {
     title: "Tracking",
     href: "/dashboard/tracking",
@@ -71,30 +71,30 @@ const sidebarItems = [
     icon: MessageSquare,
     description: "ChatGPT-like query system"
   },
-  {
-    title: "User Management",
-    href: "/dashboard/users",
-    icon: UserCheck,
-    description: "Role-based access control"
-  },
-  {
-    title: "Notifications",
-    href: "/dashboard/notifications",
-    icon: Bell,
-    description: "Alerts and notifications"
-  },
-  {
-    title: "Reports",
-    href: "/dashboard/reports",
-    icon: Download,
-    description: "Data export and reports"
-  },
-  {
-    title: "Settings",
-    href: "/dashboard/settings",
-    icon: Settings,
-    description: "System configuration"
-  }
+  // {
+  //   title: "User Management",
+  //   href: "/dashboard/users",
+  //   icon: UserCheck,
+  //   description: "Role-based access control"
+  // },
+  // {
+  //   title: "Notifications",
+  //   href: "/dashboard/notifications",
+  //   icon: Bell,
+  //   description: "Alerts and notifications"
+  // },
+  // {
+  //   title: "Reports",
+  //   href: "/dashboard/reports",
+  //   icon: Download,
+  //   description: "Data export and reports"
+  // },
+  // {
+  //   title: "Settings",
+  //   href: "/dashboard/settings",
+  //   icon: Settings,
+  //   description: "System configuration"
+  // }
 ]
 
 export default function DashboardLayout({

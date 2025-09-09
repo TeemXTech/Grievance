@@ -188,19 +188,21 @@ export default function DashboardPage() {
   ];
 
   const grievanceColumns = [
+    { header: "Sl No.", field: "id", special: null },
     { header: "ID", field: "trackingNumber", special: null },
     { header: "Title", field: "title", special: null },
-    { header: "Requestor", field: "citizenName", special: null },
-    { header: "Requestor Mobile", field: "citizenPhone", special: null },
+    { header: "Citizen Name", field: "citizenName", special: null },
+    { header: "Mobile", field: "citizenPhone", special: null },
     { header: "Created On", field: "createdOn", special: null },
     { header: "Completed On", field: "completedOn", special: null },
-    { header: "Pending Since", field: "pendingSince", special: null },
+    { header: "Days Count", field: "pendingSince", special: null },
     { header: "Location", field: "location", special: null },
     { header: "Status", field: "status", special: "badge" },
     { header: "Assigned To", field: "assignedTo", special: "select" },
   ];
 
   const projectColumns = [
+    { header: "Sl No.", field: "id", special: null },
     { header: "ID", field: "projectNumber", special: null },
     { header: "Name", field: "name", special: null },
     { header: "Started On", field: "startedOn", special: null },
