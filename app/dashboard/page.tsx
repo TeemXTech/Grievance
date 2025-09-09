@@ -291,9 +291,7 @@ export default function DashboardPage() {
       );
       mockGrievances.splice(0, mockGrievances.length, ...updatedGrievances);
     } else {
-      const updatedProjects = mockProjects.map((item) =>
-        item.id === itemId ? { ...item, assignedTo: value } : item
-      );
+      const updatedProjects = mockProjects.map((item) => (item.id === itemId ? { ...item, assignedTo: value } : item));
       mockProjects.splice(0, mockProjects.length, ...updatedProjects);
     }
   };
@@ -577,16 +575,16 @@ export default function DashboardPage() {
               <div className="text-sm text-gray-600 mt-2">
                 <div className="flex items-center space-x-4">
                   <div className="flex items-center">
-                    <div className="w-3 h-3 bg-green-500 rounded mr-2"></div>
-                    <span>Marriage</span>
+                    <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
+                    <span>Rally</span>
                   </div>
                   <div className="flex items-center">
-                    <div className="w-3 h-3 bg-yellow-500 rounded mr-2"></div>
+                    <div className="w-3 h-3 bg-yellow-500 rounded-full mr-2"></div>
                     <span>Meeting</span>
                   </div>
                   <div className="flex items-center">
-                    <div className="w-3 h-3 bg-blue-500 rounded mr-2"></div>
-                    <span>Other</span>
+                    <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+                    <span>Outreach/Conference</span>
                   </div>
                 </div>
                 <p className="text-xs mt-2">Click on any date to view and assign events</p>
