@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import {
   FileText,
   Clock,
@@ -16,10 +16,47 @@ import {
   Calendar,
   MapPin,
   Phone,
-  Mail
-} from "lucide-react"
+  Mail,
+} from "lucide-react";
+import { useState } from "react";
+
+const translations = {
+  en: {
+    dashboard: "Dashboard",
+    grievances: "Grievances",
+    projects: "Projects",
+    totalGrievances: "Total Grievances",
+    totalProjects: "Total Projects",
+    // pendingItems: "Pending Items", completedItems: "Completed Items",
+    calendar: "Calendar",
+    map: "Telangana Map",
+    aiAssistant: "AI Assistant",
+    askQuestion: "Ask me anything about your constituency...",
+    send: "Send",
+    clear: "Clear",
+  },
+  te: {
+    dashboard: "డ్యాష్బోర్డ్",
+    grievances: "ఫిర్యాదులు",
+    projects: "ప్రాజెక్టులు",
+    totalGrievances: "మొత్తం ఫిర్యాదులు",
+    totalProjects: "మొత్తం ప్రాజెక్టులు",
+    pendingItems: "పెండింగ్ అంశలు",
+    completedItems: "పూర్తయిన అంశలు",
+    calendar: "క్యాలెండర్",
+    map: "తెలంగాణ మ్యాప్",
+    aiAssistant: "AI సహాయకుడు",
+    askQuestion: "మీ నియోజకవర్గం గురించి ఏదైనా అడగండి...",
+    send: "పంపు",
+    clear: "క్లియర్",
+  },
+};
 
 export default function DashboardPage() {
+  const [language, setLanguage] = useState("en");
+
+  const t = translations[language];
+
   const stats = [
     {
       title: "Total Grievances",
@@ -28,7 +65,7 @@ export default function DashboardPage() {
       changeType: "positive",
       icon: FileText,
       color: "text-blue-600",
-      bgColor: "bg-blue-100"
+      bgColor: "bg-blue-100",
     },
     {
       title: "Pending",
@@ -37,7 +74,7 @@ export default function DashboardPage() {
       changeType: "negative",
       icon: Clock,
       color: "text-orange-600",
-      bgColor: "bg-orange-100"
+      bgColor: "bg-orange-100",
     },
     {
       title: "Resolved",
@@ -46,7 +83,7 @@ export default function DashboardPage() {
       changeType: "positive",
       icon: CheckCircle,
       color: "text-green-600",
-      bgColor: "bg-green-100"
+      bgColor: "bg-green-100",
     },
     {
       title: "Active Users",
@@ -55,9 +92,9 @@ export default function DashboardPage() {
       changeType: "positive",
       icon: Users,
       color: "text-purple-600",
-      bgColor: "bg-purple-100"
-    }
-  ]
+      bgColor: "bg-purple-100",
+    },
+  ];
 
   const recentGrievances = [
     {
@@ -68,7 +105,7 @@ export default function DashboardPage() {
       category: "Infrastructure",
       assignedTo: "Officer Kumar",
       createdAt: "2 hours ago",
-      location: "Hyderabad"
+      location: "Hyderabad",
     },
     {
       id: "GRV-002",
@@ -78,7 +115,7 @@ export default function DashboardPage() {
       category: "Utilities",
       assignedTo: "Officer Sharma",
       createdAt: "4 hours ago",
-      location: "Secunderabad"
+      location: "Secunderabad",
     },
     {
       id: "GRV-003",
@@ -88,17 +125,17 @@ export default function DashboardPage() {
       category: "Infrastructure",
       assignedTo: "Officer Patel",
       createdAt: "1 day ago",
-      location: "Warangal"
-    }
-  ]
+      location: "Warangal",
+    },
+  ];
 
   const categoryStats = [
     { name: "Infrastructure", count: 456, percentage: 36.6 },
     { name: "Utilities", count: 234, percentage: 18.8 },
     { name: "Healthcare", count: 189, percentage: 15.2 },
     { name: "Education", count: 156, percentage: 12.5 },
-    { name: "Others", count: 212, percentage: 17.0 }
-  ]
+    { name: "Others", count: 212, percentage: 17.0 },
+  ];
 
   return (
     <div className="space-y-6">
@@ -107,9 +144,7 @@ export default function DashboardPage() {
         {stats.map((stat) => (
           <Card key={stat.title}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                {stat.title}
-              </CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">{stat.title}</CardTitle>
               <div className={`p-2 rounded-lg ${stat.bgColor}`}>
                 <stat.icon className={`h-4 w-4 ${stat.color}`} />
               </div>
@@ -135,9 +170,7 @@ export default function DashboardPage() {
                 <Activity className="h-5 w-5" />
                 Recent Grievances
               </CardTitle>
-              <CardDescription>
-                Latest grievances and their current status
-              </CardDescription>
+              <CardDescription>Latest grievances and their current status</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -146,17 +179,27 @@ export default function DashboardPage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <h4 className="font-medium">{grievance.title}</h4>
-                        <Badge variant={
-                          grievance.status === "Resolved" ? "default" :
-                          grievance.status === "In Progress" ? "secondary" : "destructive"
-                        }>
+                        <Badge
+                          variant={
+                            grievance.status === "Resolved"
+                              ? "default"
+                              : grievance.status === "In Progress"
+                              ? "secondary"
+                              : "destructive"
+                          }
+                        >
                           {grievance.status}
                         </Badge>
-                        <Badge variant="outline" className={
-                          grievance.priority === "High" ? "border-red-500 text-red-700" :
-                          grievance.priority === "Medium" ? "border-yellow-500 text-yellow-700" :
-                          "border-green-500 text-green-700"
-                        }>
+                        <Badge
+                          variant="outline"
+                          className={
+                            grievance.priority === "High"
+                              ? "border-red-500 text-red-700"
+                              : grievance.priority === "Medium"
+                              ? "border-yellow-500 text-yellow-700"
+                              : "border-green-500 text-green-700"
+                          }
+                        >
                           {grievance.priority}
                         </Badge>
                       </div>
@@ -190,9 +233,7 @@ export default function DashboardPage() {
                 <BarChart3 className="h-5 w-5" />
                 Category Distribution
               </CardTitle>
-              <CardDescription>
-                Grievances by category
-              </CardDescription>
+              <CardDescription>Grievances by category</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -272,5 +313,5 @@ export default function DashboardPage() {
         </Card>
       </div>
     </div>
-  )
+  );
 }
