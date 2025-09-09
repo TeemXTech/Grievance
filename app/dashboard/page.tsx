@@ -137,7 +137,7 @@ export default function DashboardPage() {
       constituency: "Manthanani",
       description: "New bridge construction",
       assignedTo: "Engineer Kumar",
-      pdfIcon: <File className="h-4 w-4 mr-2"/>
+      pdfIcon: <File className="h-4 w-4 mr-2" />,
     },
   ];
 
@@ -191,29 +191,31 @@ export default function DashboardPage() {
     // },
   ];
 
-  const grievanceTableHeaders = [
-    "Title",
-    "Location",
-    "Status",
-    "Assigned To",
-    "Created On",
-    "Completed On",
-    "Pending Since",
-    "Requestor",
-    "Requestor Mobile",
+  const grievanceColumns = [
+    { header: "ID", field: "trackingNumber", special: null },
+    { header: "Title", field: "title", special: null },
+    { header: "Requestor", field: "citizenName", special: null },
+    { header: "Requestor Mobile", field: "citizenPhone", special: null },
+    { header: "Created On", field: "createdOn", special: null },
+    { header: "Completed On", field: "completedOn", special: null },
+    { header: "Pending Since", field: "pendingSince", special: null },
+    { header: "Location", field: "location", special: null },
+    { header: "Status", field: "status", special: "badge" },
+    { header: "Assigned To", field: "assignedTo", special: null },
   ];
 
-  const projectTableHeaders = [
-    "Name",
-    "Location",
-    "Status",
-    "Assigned To",
-    "Started On",
-    "Completed On",
-    "Project Value",
-    "Amount Paid",
-    "Comission",
-    "File Uploads"
+  const projectColumns = [
+    { header: "ID", field: "projectNumber", special: null },
+    { header: "Name", field: "name", special: null },
+    { header: "Started On", field: "startedOn", special: null },
+    { header: "Completed On", field: "completedOn", special: null },
+    { header: "Project Value", field: "projectValue", special: null },
+    { header: "Amount Paid", field: "amountPaid", special: null },
+    { header: "Comission", field: "comission", special: null },
+    { header: "Location", field: "location", special: null },
+    { header: "Status", field: "status", special: "badge" },
+    { header: "Assigned To", field: "assignedTo", special: null },
+    // { header: "File Uploads", field: "pdfIcon", special: "icon" },
   ];
 
   const recentGrievances = [
@@ -281,6 +283,8 @@ export default function DashboardPage() {
     setSelectedConstituency(constituency);
     setShowFilteredList(true);
   };
+
+  const columns = dataType === "grievances" ? grievanceColumns : projectColumns;
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
@@ -365,39 +369,35 @@ export default function DashboardPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Requestor</TableHead>
-                  <TableHead>Requestor Mobile</TableHead>
-                  <TableHead>Created On</TableHead>
-                  <TableHead>Completed On</TableHead>
-                  <TableHead>Pending Since</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Assigned To</TableHead>
+                  {columns.map((col) => (
+                    <TableHead key={col.header}>{col.header}</TableHead>
+                  ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {getFilteredData().map((item) => (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.trackingNumber || item.projectNumber}</TableCell>
-                    <TableCell>{item.title || item.name}</TableCell>
-                    <TableCell>{item.citizenName || "N/A"}</TableCell>
-                    <TableCell>{item.location}</TableCell>
-                    <TableCell>
-                      <Badge
-                        className={
-                          item.status === "Resolved" || item.status === "Completed"
-                            ? "bg-green-100 text-green-800"
-                            : item.status === "In Progress"
-                            ? "bg-blue-100 text-blue-800"
-                            : "bg-orange-100 text-orange-800"
-                        }
-                      >
-                        {item.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{item.assignedTo}</TableCell>
+                    {columns.map((col) => (
+                      <TableCell key={col.header} className={col.header === "ID" ? "font-medium" : ""}>
+                        {col.special === "badge" ? (
+                          <Badge
+                            className={
+                              item[col.field] === "Resolved" || item[col.field] === "Completed"
+                                ? "bg-green-100 text-green-800"
+                                : item[col.field] === "In Progress"
+                                ? "bg-blue-100 text-blue-800"
+                                : "bg-orange-100 text-orange-800"
+                            }
+                          >
+                            {item[col.field]}
+                          </Badge>
+                        ) : col.special === "icon" ? (
+                          item[col.field] || "N/A"
+                        ) : (
+                          item[col.field] || "N/A"
+                        )}
+                      </TableCell>
+                    ))}
                   </TableRow>
                 ))}
               </TableBody>
