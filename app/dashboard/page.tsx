@@ -26,6 +26,7 @@ import {
   Languages,
   File,
 } from "lucide-react";
+import { mockGrievances, mockProjects, teamMembers } from "@/constants";
 
 // Dynamically import TelanganaMap to avoid SSR issues with Leaflet
 const TelanganaMap = dynamic(() => import("../../components/TelanganaMap"), {
@@ -83,77 +84,64 @@ export default function DashboardPage() {
   const t = translations[language];
 
   // Mock data with district/constituency mapping
-  const mockGrievances = [
-    {
-      id: 1,
-      trackingNumber: "GRI-I-23-08012025",
-      title: "Road Repair Needed",
-      category: "Infrastructure",
-      status: "Pending",
-      priority: "High",
-      createdOn: "01-09-2025",
-      completedOn: "",
-      pendingSince: "9 days",
-      citizenName: "Rajesh Kumar",
-      citizenPhone: "+91-9876543210",
-      location: "Manthanani Village",
-      district: "Karimnagar",
-      constituency: "Manthanani",
-      description: "Main road has multiple potholes",
-      assignedTo: "Field Officer Ramesh",
-    },
-    {
-      id: 2,
-      trackingNumber: "GRI-H-45-07012025",
-      title: "Water Supply Issue",
-      category: "Water",
-      status: "In Progress",
-      priority: "Medium",
-      createdOn: "01-08-2025",
-      completedOn: "11-08-2025",
-      citizenName: "Sita Devi",
-      citizenPhone: "+91-9876543211",
-      location: "Ramagundam",
-      district: "Peddapalli",
-      constituency: "Ramagundam",
-      description: "Irregular water supply",
-      assignedTo: "PA Srinivas",
-    },
-  ];
+  // const mockGrievances = [
+  //   {
+  //     id: 1,
+  //     trackingNumber: "GRI-I-23-08012025",
+  //     title: "Road Repair Needed",
+  //     category: "Infrastructure",
+  //     status: "Pending",
+  //     priority: "High",
+  //     createdOn: "01-09-2025",
+  //     completedOn: "",
+  //     pendingSince: "9 days",
+  //     citizenName: "Rajesh Kumar",
+  //     citizenPhone: "+91-9876543210",
+  //     location: "Manthanani Village",
+  //     district: "Karimnagar",
+  //     constituency: "Manthanani",
+  //     description: "Main road has multiple potholes",
+  //     assignedTo: "Field Officer Ramesh",
+  //   },
+  //   {
+  //     id: 2,
+  //     trackingNumber: "GRI-H-45-07012025",
+  //     title: "Water Supply Issue",
+  //     category: "Water",
+  //     status: "In Progress",
+  //     priority: "Medium",
+  //     createdOn: "01-08-2025",
+  //     completedOn: "11-08-2025",
+  //     citizenName: "Sita Devi",
+  //     citizenPhone: "+91-9876543211",
+  //     location: "Ramagundam",
+  //     district: "Peddapalli",
+  //     constituency: "Ramagundam",
+  //     description: "Irregular water supply",
+  //     assignedTo: "PA Srinivas",
+  //   },
+  // ];
 
-  const mockProjects = [
-    {
-      id: 1,
-      projectNumber: "PRJ-I-12-08012025",
-      name: "Bridge Construction",
-      category: "Infrastructure",
-      status: "In Progress",
-      projectValue: "₹0.5 Crore",
-      amountPaid: "₹0.2 Crore",
-      comission: "₹0.01 Crore",
-      startedOn: "01-09-2025",
-      completedOn: "",
-      location: "Manthanani",
-      district: "Karimnagar",
-      constituency: "Manthanani",
-      description: "New bridge construction",
-      assignedTo: "Engineer Kumar",
-      pdfIcon: <File className="h-4 w-4 mr-2" />,
-    },
-  ];
-
-  const teamMembers = [
-    "Field Officer Ramesh",
-    "PA Srinivas",
-    "Engineer Kumar",
-    "Officer Priya",
-    "Officer Anil",
-    "Officer Suresh",
-    "Officer Lakshmi",
-    "Officer Raju",
-    "Officer Meena",
-    "Officer Vijay",
-  ];
+  // const mockProjects = [
+  //   {
+  //     id: 1,
+  //     projectNumber: "PRJ-I-12-08012025",
+  //     name: "Bridge Construction",
+  //     category: "Infrastructure",
+  //     status: "In Progress",
+  //     projectValue: "₹0.5 Crore",
+  //     amountPaid: "₹0.2 Crore",
+  //     comission: "₹0.01 Crore",
+  //     startedOn: "01-09-2025",
+  //     completedOn: "",
+  //     location: "Manthanani",
+  //     district: "Karimnagar",
+  //     constituency: "Manthanani",
+  //     description: "New bridge construction",
+  //     assignedTo: "Engineer Kumar",
+  //     pdfIcon: <File className="h-4 w-4 mr-2" />,
+  //   },
+  // ];
 
   const dashboardStats = {
     totalGrievances: mockGrievances.length,
