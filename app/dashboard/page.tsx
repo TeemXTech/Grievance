@@ -57,6 +57,8 @@ const translations = {
     askQuestion: "Ask me anything about your constituency...",
     send: "Send",
     clear: "Clear",
+    recentItems: "Recent {type}",
+    categoryDistribution: "{type} by Category",
   },
   te: {
     dashboard: "డ్యాష్బోర్డ్",
@@ -70,6 +72,8 @@ const translations = {
     askQuestion: "మీ నియోజకవర్గం గురించి ఏదైనా అడగండి...",
     send: "పంపు",
     clear: "క్లియర్",
+    recentItems: "ఇటీవలి {type}",
+    categoryDistribution: "{type} వర్గం వారీగా",
   },
 };
 
@@ -82,66 +86,6 @@ export default function DashboardPage() {
   const [assignments, setAssignments] = useState({});
 
   const t = translations[language];
-
-  // Mock data with district/constituency mapping
-  // const mockGrievances = [
-  //   {
-  //     id: 1,
-  //     trackingNumber: "GRI-I-23-08012025",
-  //     title: "Road Repair Needed",
-  //     category: "Infrastructure",
-  //     status: "Pending",
-  //     priority: "High",
-  //     createdOn: "01-09-2025",
-  //     completedOn: "",
-  //     pendingSince: "9 days",
-  //     citizenName: "Rajesh Kumar",
-  //     citizenPhone: "+91-9876543210",
-  //     location: "Manthanani Village",
-  //     district: "Karimnagar",
-  //     constituency: "Manthanani",
-  //     description: "Main road has multiple potholes",
-  //     assignedTo: "Field Officer Ramesh",
-  //   },
-  //   {
-  //     id: 2,
-  //     trackingNumber: "GRI-H-45-07012025",
-  //     title: "Water Supply Issue",
-  //     category: "Water",
-  //     status: "In Progress",
-  //     priority: "Medium",
-  //     createdOn: "01-08-2025",
-  //     completedOn: "11-08-2025",
-  //     citizenName: "Sita Devi",
-  //     citizenPhone: "+91-9876543211",
-  //     location: "Ramagundam",
-  //     district: "Peddapalli",
-  //     constituency: "Ramagundam",
-  //     description: "Irregular water supply",
-  //     assignedTo: "PA Srinivas",
-  //   },
-  // ];
-
-  // const mockProjects = [
-  //   {
-  //     id: 1,
-  //     projectNumber: "PRJ-I-12-08012025",
-  //     name: "Bridge Construction",
-  //     category: "Infrastructure",
-  //     status: "In Progress",
-  //     projectValue: "₹0.5 Crore",
-  //     amountPaid: "₹0.2 Crore",
-  //     comission: "₹0.01 Crore",
-  //     startedOn: "01-09-2025",
-  //     completedOn: "",
-  //     location: "Manthanani",
-  //     district: "Karimnagar",
-  //     constituency: "Manthanani",
-  //     description: "New bridge construction",
-  //     assignedTo: "Engineer Kumar",
-  //     pdfIcon: <File className="h-4 w-4 mr-2" />,
-  //   },
-  // ];
 
   const dashboardStats = {
     totalGrievances: mockGrievances.length,
@@ -203,47 +147,6 @@ export default function DashboardPage() {
     { header: "Assigned To", field: "assignedTo", special: "select" },
   ];
 
-  const recentGrievances = [
-    {
-      id: "GRV-001",
-      title: "Road Repair on Main Street",
-      status: "In Progress",
-      priority: "High",
-      category: "Infrastructure",
-      assignedTo: "Officer Kumar",
-      createdAt: "2 hours ago",
-      location: "Hyderabad",
-    },
-    {
-      id: "GRV-002",
-      title: "Water Supply Disruption",
-      status: "Pending",
-      priority: "High",
-      category: "Utilities",
-      assignedTo: "Officer Sharma",
-      createdAt: "4 hours ago",
-      location: "Secunderabad",
-    },
-    {
-      id: "GRV-003",
-      title: "Street Light Repair",
-      status: "Resolved",
-      priority: "Medium",
-      category: "Infrastructure",
-      assignedTo: "Officer Patel",
-      createdAt: "1 day ago",
-      location: "Warangal",
-    },
-  ];
-
-  const categoryStats = [
-    { name: "Infrastructure", count: 456, percentage: 36.6 },
-    { name: "Utilities", count: 234, percentage: 18.8 },
-    { name: "Healthcare", count: 189, percentage: 15.2 },
-    { name: "Education", count: 156, percentage: 12.5 },
-    { name: "Others", count: 212, percentage: 17.0 },
-  ];
-
   const telanganaDistricts = [
     { name: "Karimnagar", constituencies: ["Manthanani", "Karimnagar", "Choppadandi"] },
     { name: "Peddapalli", constituencies: ["Ramagundam", "Peddapalli", "Dharmapuri"] },
@@ -289,6 +192,26 @@ export default function DashboardPage() {
   // Calculate count for display
   const filteredCount = getFilteredData().length;
 
+  // Get recent items (last 3 from mockGrievances or mockProjects)
+  const recentItems = (dataType === "grievances" ? mockGrievances : mockProjects)
+    .slice(-6)
+    .sort((a, b) => new Date(b.createdOn || b.startedOn).getTime() - new Date(a.createdOn || a.startedOn).getTime());
+
+  // Calculate category distribution dynamically
+  const data = dataType === "grievances" ? mockGrievances : mockProjects;
+  const categoryCounts = data.reduce((acc, item) => {
+    const category = item.category || "Others";
+    acc[category] = (acc[category] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const totalItems = data.length;
+  const categoryStats = Object.entries(categoryCounts).map(([name, count]) => ({
+    name,
+    count,
+    percentage: totalItems > 0 ? ((count / totalItems) * 100).toFixed(1) : 0,
+  }));
+
   const columns = dataType === "grievances" ? grievanceColumns : projectColumns;
 
   return (
@@ -325,8 +248,6 @@ export default function DashboardPage() {
                 ? "border-l-blue-500"
                 : stat.title === t.totalProjects
                 ? "border-l-green-500"
-                : stat.title === "Pending"
-                ? "border-l-orange-500"
                 : "border-l-purple-500"
             }`}
             onClick={() => {
@@ -432,69 +353,8 @@ export default function DashboardPage() {
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Recent Grievances and Map */}
+        {/* Left Column: Recent Items and Map */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Recent Grievances */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Activity className="h-5 w-5" />
-                Recent Grievances
-              </CardTitle>
-              <CardDescription>Latest grievances and their current status</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {recentGrievances.map((grievance) => (
-                  <div key={grievance.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h4 className="font-medium">{grievance.title}</h4>
-                        <Badge
-                          variant={
-                            grievance.status === "Resolved"
-                              ? "default"
-                              : grievance.status === "In Progress"
-                              ? "secondary"
-                              : "destructive"
-                          }
-                        >
-                          {grievance.status}
-                        </Badge>
-                        <Badge
-                          variant="outline"
-                          className={
-                            grievance.priority === "High"
-                              ? "border-red-500 text-red-700"
-                              : grievance.priority === "Medium"
-                              ? "border-yellow-500 text-yellow-700"
-                              : "border-green-500 text-green-700"
-                          }
-                        >
-                          {grievance.priority}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-4 text-sm text-gray-500">
-                        <span className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          {grievance.location}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Users className="h-3 w-3" />
-                          {grievance.assignedTo}
-                        </span>
-                        <span>{grievance.createdAt}</span>
-                      </div>
-                    </div>
-                    <Button variant="outline" size="sm">
-                      View Details
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Telangana Map */}
           <Card>
             <CardHeader>
@@ -535,34 +395,81 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Recent Items */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                {t.recentItems.replace("{type}", dataType === "grievances" ? t.grievances : t.projects)}
+              </CardTitle>
+              <CardDescription>
+                Latest {dataType === "grievances" ? "grievances" : "projects"} and their current status
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {recentItems.length > 0 ? (
+                  recentItems.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h4 className="font-medium">{item.title || item.name}</h4>
+                          <Badge
+                            variant={
+                              item.status === "Resolved" || item.status === "Completed"
+                                ? "default"
+                                : item.status === "In Progress"
+                                ? "secondary"
+                                : "destructive"
+                            }
+                          >
+                            {item.status}
+                          </Badge>
+                          <Badge
+                            variant="outline"
+                            className={
+                              item.priority === "High"
+                                ? "border-red-500 text-red-700"
+                                : item.priority === "Medium"
+                                ? "border-yellow-500 text-yellow-700"
+                                : item.priority
+                                ? "border-green-500 text-green-700"
+                                : "hidden"
+                            }
+                          >
+                            {item.priority || ""}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                          <span className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {item.location}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Users className="h-3 w-3" />
+                            {item.assignedTo}
+                          </span>
+                          <span>{item.createdOn || item.startedOn}</span>
+                        </div>
+                      </div>
+                      <Button variant="outline" size="sm">
+                        View Details
+                      </Button>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-gray-500 text-sm">
+                    No recent {dataType === "grievances" ? "grievances" : "projects"} available.
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Right Column: Category Distribution, Calendar, and Quick Actions */}
         <div className="space-y-6">
-          {/* Category Distribution */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" />
-                Category Distribution
-              </CardTitle>
-              <CardDescription>Grievances by category</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {categoryStats.map((category) => (
-                  <div key={category.name} className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium">{category.name}</span>
-                      <span className="text-gray-500">{category.count}</span>
-                    </div>
-                    <Progress value={category.percentage} className="h-2" />
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Interactive Calendar */}
           <Card>
             <CardHeader>
@@ -593,8 +500,38 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Quick Actions */}
+          {/* Category Distribution */}
           <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                {t.categoryDistribution.replace("{type}", dataType === "grievances" ? t.grievances : t.projects)}
+              </CardTitle>
+              <CardDescription>{dataType === "grievances" ? t.grievances : t.projects} by category</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {categoryStats.length > 0 ? (
+                  categoryStats.map((category) => (
+                    <div key={category.name} className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-medium">{category.name}</span>
+                        <span className="text-gray-500">{category.count}</span>
+                      </div>
+                      <Progress value={category.percentage} className="h-2" />
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-gray-500 text-sm">
+                    No {dataType === "grievances" ? "grievances" : "projects"} available for categorization.
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Quick Actions */}
+          {/* <Card>
             <CardHeader>
               <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
@@ -616,7 +553,7 @@ export default function DashboardPage() {
                 Schedule Meeting
               </Button>
             </CardContent>
-          </Card>
+          </Card> */}
         </div>
       </div>
 
