@@ -18,35 +18,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Edit, Eye, Filter, Plus, Search, File } from "lucide-react";
+import { mockProjects } from "@/constants";
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>(mockProjects);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
-
-  const mockProjects = [
-    {
-      id: 1,
-      projectNumber: "PRJ-I-12-08012025",
-      name: "Bridge Construction",
-      category: { id: 1, name: "Infrastructure" },
-      status: "In Progress",
-      projectValue: "₹0.5 Crore",
-      amountPaid: "₹0.2 Crore",
-      comission: "₹0.01 Crore",
-      startedOn: "01-09-2025",
-      completedOn: "",
-      location: "Manthanani",
-      district: "Karimnagar",
-      constituency: "Manthanani",
-      description: "New bridge construction",
-      assignedTo: "Engineer Kumar",
-      pdfIcon: <File className="h-4 w-4 mr-2" />,
-    },
-  ];
 
   useEffect(() => {
     // Mock categories to simulate API response
@@ -58,7 +38,7 @@ export default function ProjectsPage() {
     ];
 
     // Simulate data fetching without API call
-    setProjects(mockProjects);
+    // setProjects(mockProjects);
     setCategories(mockCategories);
     setLoading(false);
 
@@ -104,7 +84,7 @@ export default function ProjectsPage() {
     */
   }, []);
 
-  const filteredProjects = projects.filter((project: any) => {
+  const filteredProjects = mockProjects.filter((project: any) => {
     const matchesSearch =
       (project.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       (project.location || "").toLowerCase().includes(searchTerm.toLowerCase());

@@ -33,6 +33,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { 
   Edit, Eye, Filter, Plus, Search, UserPlus 
 } from 'lucide-react'
+import { mockGrievances } from '@/constants'
 
 export default function GrievancesPage() {
   const [grievances, setGrievances] = useState<any[]>([])
@@ -83,13 +84,13 @@ export default function GrievancesPage() {
     return () => { isMounted = false }
   }, [])
 
-  const filteredGrievances = grievances.filter((grievance: any) => {
+  const filteredGrievances = mockGrievances.filter((grievance: any) => {
     const matchesSearch = (grievance.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (grievance.requesterName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (grievance.citizenName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (grievance.village || '').toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === "all" || grievance.status === statusFilter
     const matchesPriority = priorityFilter === "all" || grievance.priority === priorityFilter
-    const matchesCategory = categoryFilter === "all" || (grievance.category?.name === categoryFilter)
+    const matchesCategory = categoryFilter === "all" || (grievance.category === categoryFilter)
 
     return matchesSearch && matchesStatus && matchesPriority && matchesCategory
   })
@@ -295,7 +296,7 @@ export default function GrievancesPage() {
                 <TableRow>
                   <TableHead>Reference</TableHead>
                   <TableHead>Title</TableHead>
-                  <TableHead>Requester</TableHead>
+                  <TableHead>Citizen Name</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Priority</TableHead>
@@ -307,17 +308,17 @@ export default function GrievancesPage() {
               <TableBody>
                 {filteredGrievances.map((grievance: any) => (
                   <TableRow key={grievance.id}>
-                    <TableCell className="font-mono text-sm">{grievance.referenceNumber}</TableCell>
+                    <TableCell className="font-mono text-sm">{grievance.trackingNumber}</TableCell>
                     <TableCell>
                       <div className="font-medium">{grievance.title}</div>
                     </TableCell>
                     <TableCell>
                       <div>
-                        <div className="font-medium">{grievance.requesterName}</div>
+                        <div className="font-medium">{grievance.citizenName}</div>
                         <div className="text-sm text-gray-500">{grievance.requesterPhone}</div>
                       </div>
                     </TableCell>
-                    <TableCell>{grievance.category?.name || 'N/A'}</TableCell>
+                    <TableCell>{grievance.category || 'N/A'}</TableCell>
                     <TableCell>
                       <Badge className={getStatusColor(grievance.status)}>
                         {grievance.status}
