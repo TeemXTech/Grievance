@@ -184,7 +184,7 @@ export default function DashboardLayout({
 
         {/* Main content */}
         <div className="flex-1">
-          <div className="flex h-16 items-center gap-4 border-b bg-white px-6">
+          {/* <div className="flex h-16 items-center gap-4 border-b bg-white px-6">
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="sm" className="lg:hidden">
@@ -192,7 +192,7 @@ export default function DashboardLayout({
                 </Button>
               </SheetTrigger>
             </Sheet>
-            <div className="flex-1">
+            {/* <div className="flex-1">
               <h1 className="text-xl font-semibold">
                 {sidebarItems.find(item => item.href === pathname)?.title || "Dashboard"}
               </h1>
@@ -200,7 +200,7 @@ export default function DashboardLayout({
                 {sidebarItems.find(item => item.href === pathname)?.description || "Overview and analytics"}
               </p>
             </div>
-          </div>
+          </div> */}
           <main className="p-6">
             {children}
           </main>

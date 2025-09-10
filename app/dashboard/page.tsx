@@ -215,7 +215,7 @@ export default function DashboardPage() {
   const columns = dataType === "grievances" ? grievanceColumns : projectColumns;
 
   return (
-    <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+    <div className="space-y-6">
       {/* Header with Language Selector */}
       <div className="bg-white shadow-sm border-b p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
