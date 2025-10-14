@@ -133,10 +133,10 @@ export default function TrackingPage() {
           <h2 className="text-2xl font-bold">Tracking & Status Updates</h2>
           <p className="text-gray-600">Monitor grievance progress and timelines</p>
         </div>
-        <Button>
+        {/* <Button>
           <Plus className="h-4 w-4 mr-2" />
           Add Status Update
-        </Button>
+        </Button> */}
       </div>
 
       {/* Stats Overview */}
@@ -369,7 +369,7 @@ export default function TrackingPage() {
                         </DialogContent>
                       </Dialog>
                       <Button variant="ghost" size="sm">
-                        <Edit className="h-4 w-4" />
+                        {/* <Edit className="h-4 w-4" /> */}
                       </Button>
                     </div>
                   </TableCell>

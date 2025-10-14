@@ -37,7 +37,7 @@ export default function DemoLoginPage() {
       title: "Minister",
       description: "Hon'ble Minister Dashboard",
       email: "minister@gov.in",
-      path: "/minister/dashboard",
+      path: "/dashboard",
       icon: Crown,
       color: "from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800",
       bgColor: "bg-purple-50",
