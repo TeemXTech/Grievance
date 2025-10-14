@@ -42,17 +42,23 @@ const sidebarItems = [
     description: "Manage and assign grievances"
   },
   {
+    title: "Project Management", 
+    href: "/dashboard/projects",
+    icon: Users,
+    description: "Manage and assign projects"
+  },
+  {
     title: "Categories",
     href: "/dashboard/categories",
     icon: FolderOpen,
     description: "Category & sub-category management"
   },
-  {
-    title: "Analytics",
-    href: "/dashboard/analytics",
-    icon: BarChart3,
-    description: "Performance metrics and insights"
-  },
+  // {
+  //   title: "Analytics",
+  //   href: "/dashboard/analytics",
+  //   icon: BarChart3,
+  //   description: "Performance metrics and insights"
+  // },
   {
     title: "Tracking",
     href: "/dashboard/tracking",
@@ -65,30 +71,30 @@ const sidebarItems = [
     icon: MessageSquare,
     description: "ChatGPT-like query system"
   },
-  {
-    title: "User Management",
-    href: "/dashboard/users",
-    icon: UserCheck,
-    description: "Role-based access control"
-  },
-  {
-    title: "Notifications",
-    href: "/dashboard/notifications",
-    icon: Bell,
-    description: "Alerts and notifications"
-  },
-  {
-    title: "Reports",
-    href: "/dashboard/reports",
-    icon: Download,
-    description: "Data export and reports"
-  },
-  {
-    title: "Settings",
-    href: "/dashboard/settings",
-    icon: Settings,
-    description: "System configuration"
-  }
+  // {
+  //   title: "User Management",
+  //   href: "/dashboard/users",
+  //   icon: UserCheck,
+  //   description: "Role-based access control"
+  // },
+  // {
+  //   title: "Notifications",
+  //   href: "/dashboard/notifications",
+  //   icon: Bell,
+  //   description: "Alerts and notifications"
+  // },
+  // {
+  //   title: "Reports",
+  //   href: "/dashboard/reports",
+  //   icon: Download,
+  //   description: "Data export and reports"
+  // },
+  // {
+  //   title: "Settings",
+  //   href: "/dashboard/settings",
+  //   icon: Settings,
+  //   description: "System configuration"
+  // }
 ]
 
 export default function DashboardLayout({
@@ -178,7 +184,7 @@ export default function DashboardLayout({
 
         {/* Main content */}
         <div className="flex-1">
-          <div className="flex h-16 items-center gap-4 border-b bg-white px-6">
+          {/* <div className="flex h-16 items-center gap-4 border-b bg-white px-6">
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="sm" className="lg:hidden">
@@ -186,7 +192,7 @@ export default function DashboardLayout({
                 </Button>
               </SheetTrigger>
             </Sheet>
-            <div className="flex-1">
+            {/* <div className="flex-1">
               <h1 className="text-xl font-semibold">
                 {sidebarItems.find(item => item.href === pathname)?.title || "Dashboard"}
               </h1>
@@ -194,7 +200,7 @@ export default function DashboardLayout({
                 {sidebarItems.find(item => item.href === pathname)?.description || "Overview and analytics"}
               </p>
             </div>
-          </div>
+          </div> */}
           <main className="p-6">
             {children}
           </main>
