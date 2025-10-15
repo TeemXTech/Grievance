@@ -1,4 +1,5 @@
 "use client";
+import { Textarea } from "@/components/ui/textarea"
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
@@ -8,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+
 import {
   FileText,
   Clock,
@@ -24,9 +27,11 @@ import {
   Building2,
   X,
   Languages,
+  Eye,
   File,
 } from "lucide-react";
 import { mockGrievances, mockProjects, teamMembers } from "@/constants";
+import { Label } from "@/components/ui/label";
 
 // Dynamically import TelanganaMap to avoid SSR issues with Leaflet
 const TelanganaMap = dynamic(() => import("../../components/TelanganaMap"), {
@@ -76,6 +81,130 @@ const translations = {
     categoryDistribution: "{type} వర్గం వారీగా",
   },
 };
+
+
+const ProdjectDialog = ({ item, children }) => {
+
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "Resolved": return "bg-green-100 text-green-800"
+      case "In Progress": return "bg-blue-100 text-blue-800"
+      case "Pending": return "bg-orange-100 text-orange-800"
+      default: return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "High": return "border-red-500 text-red-700"
+      case "Medium": return "border-yellow-500 text-yellow-700"
+      case "Low": return "border-green-500 text-green-700"
+      default: return "border-gray-500 text-gray-700"
+    }
+  }
+
+  const getProgressColor = (progress: number) => {
+    if (progress >= 80) return "bg-green-500"
+    if (progress >= 50) return "bg-blue-500"
+    return "bg-orange-500"
+  }
+  return (<>
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="sm">
+          {children}
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Tracking Details - {item.id}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-6">
+          {/* Grievance Info */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label className="font-medium">Title</Label>
+              <p>{item?.title || item?.name || "N/A"}</p>
+            </div>
+            <div>
+              <Label className="font-medium">Status</Label>
+              <Badge className={getStatusColor(item.status)}>
+                {item.status}
+              </Badge>
+            </div>
+            <div>
+              <Label className="font-medium">Priority</Label>
+              <Badge variant="outline" className={getPriorityColor(item?.priority || "N/A")}>
+                {item?.priority || "N/A"}
+              </Badge>
+            </div>
+            <div>
+              <Label className="font-medium">Category</Label>
+              <p>{item.category}</p>
+            </div>
+            <div>
+              <Label className="font-medium">Assigned To</Label>
+              <p>{item.assignedTo}</p>
+            </div>
+            <div>
+              <Label className="font-medium">Location</Label>
+              <p>{item.location}</p>
+            </div>
+          </div>
+
+          {/* Progress Bar */}
+          <div>
+            <Label className="font-medium">Progress</Label>
+            <div className="flex items-center gap-2 mt-2">
+              <Progress value={item?.progress || 59} className="flex-1" />
+              <span className="text-sm font-medium">{item?.progress || 59}%</span>
+            </div>
+          </div>
+
+          {/* Timeline */}
+          <div>
+            <Label className="font-medium">Timeline</Label>
+            <div className="mt-3 space-y-3">
+              {/* {item.timeline.map((event, index) => (
+                                    <div key={index} className="flex items-start gap-3">
+                                      <div className={`w-3 h-3 rounded-full mt-2 ${index === item.timeline.length - 1 ? getProgressColor(item.progress) : "bg-gray-300"
+                                        }`}></div>
+                                      <div className="flex-1">
+                                        <div className="flex items-center gap-2">
+                                          <span className="font-medium">{event.status}</span>
+                                          <span className="text-sm text-gray-500">{event.date}</span>
+                                        </div>
+                                        <p className="text-sm text-gray-600 mt-1">{event.description}</p>
+                                      </div>
+                                    </div>
+                                  ))} */}
+            </div>
+          </div>
+
+          {/* Add Update */}
+          <div className="border-t pt-4">
+            <Label className="font-medium">Add Status Update</Label>
+            <div className="space-y-3 mt-3">
+              <Select>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="in-progress">In Progress</SelectItem>
+                  <SelectItem value="resolved">Resolved</SelectItem>
+                </SelectContent>
+              </Select>
+              <Textarea placeholder="Add update description..." />
+              <Button>Add Update</Button>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  </>)
+}
 
 export default function DashboardPage() {
   const [language, setLanguage] = useState("en");
@@ -131,6 +260,7 @@ export default function DashboardPage() {
     { header: "Location", field: "location", special: null },
     { header: "Status", field: "status", special: "badge" },
     { header: "Assigned To", field: "assignedTo", special: "select" },
+    { header: "View", field: "assignedTo", special: "view" },
   ];
 
   const projectColumns = [
@@ -145,6 +275,7 @@ export default function DashboardPage() {
     { header: "Location", field: "location", special: null },
     { header: "Status", field: "status", special: "badge" },
     { header: "Assigned To", field: "assignedTo", special: "select" },
+    { header: "Assigned To", field: "assignedTo", special: "view" },
   ];
 
   const telanganaDistricts = [
@@ -214,6 +345,7 @@ export default function DashboardPage() {
 
   const columns = dataType === "grievances" ? grievanceColumns : projectColumns;
 
+
   return (
     <div className="space-y-6">
       {/* Header with Language Selector */}
@@ -243,13 +375,12 @@ export default function DashboardPage() {
         {stats.map((stat) => (
           <Card
             key={stat.title}
-            className={`cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-[1.02] border-l-4 ${
-              stat.title === t.totalGrievances
-                ? "border-l-blue-500"
-                : stat.title === t.totalProjects
+            className={`cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-[1.02] border-l-4 ${stat.title === t.totalGrievances
+              ? "border-l-blue-500"
+              : stat.title === t.totalProjects
                 ? "border-l-green-500"
                 : "border-l-purple-500"
-            }`}
+              }`}
             onClick={() => {
               if (stat.title === t.totalGrievances) {
                 setDataType("grievances");
@@ -307,40 +438,47 @@ export default function DashboardPage() {
               </TableHeader>
               <TableBody>
                 {getFilteredData().map((item) => (
-                  <TableRow key={item.id}>
+                  <TableRow key={item.id} onClick={() => {
+
+                  }}>
                     {columns.map((col) => (
+
                       <TableCell key={col.header} className={col.header === "ID" ? "font-medium" : ""}>
-                        {col.special === "badge" ? (
-                          <Badge
-                            className={
-                              item[col.field] === "Resolved" || item[col.field] === "Completed"
-                                ? "bg-green-100 text-green-800"
-                                : item[col.field] === "In Progress"
-                                ? "bg-blue-100 text-blue-800"
-                                : "bg-orange-100 text-orange-800"
-                            }
-                          >
-                            {item[col.field]}
-                          </Badge>
-                        ) : col.special === "select" ? (
-                          <Select
-                            value={assignments[item.id] || item[col.field] || ""}
-                            onValueChange={(value) => handleAssignChange(item.id, value)}
-                          >
-                            <SelectTrigger className="w-[180px]">
-                              <SelectValue placeholder="Select assignee" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {teamMembers.map((member) => (
-                                <SelectItem key={member} value={member}>
-                                  {member}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          item[col.field] || "N/A"
-                        )}
+                        <ProdjectDialog item={item}>
+                          {col.special === "badge" ? (
+                            <Badge
+                              className={
+                                item[col.field] === "Resolved" || item[col.field] === "Completed"
+                                  ? "bg-green-100 text-green-800"
+                                  : item[col.field] === "In Progress"
+                                    ? "bg-blue-100 text-blue-800"
+                                    : "bg-orange-100 text-orange-800"
+                              }
+                            >
+                              {item[col.field]}
+                            </Badge>
+                          ) : col.special === "select" ? (
+                            <Select
+                              value={assignments[item.id] || item[col.field] || ""}
+                              onValueChange={(value) => handleAssignChange(item.id, value)}
+                            >
+                              <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="Select assignee" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {teamMembers.map((member) => (
+                                  <SelectItem key={member} value={member}>
+                                    {member}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            item[col.field] || "N/A"
+                          )}
+
+
+                        </ProdjectDialog>
                       </TableCell>
                     ))}
                   </TableRow>
@@ -364,7 +502,7 @@ export default function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="bg-gradient-to-br from-green-50 to-blue-50 p-4 rounded-lg">
+              <div className="bg-gradient-to-br from-green-50 to-blue-50 p-4 rounded-lg relative z-0">
                 <TelanganaMap onDistrictClick={handleMapClick} />
                 {selectedDistrict && (
                   <div className="mt-4 p-4 bg-white rounded-lg border shadow-sm">
@@ -408,10 +546,13 @@ export default function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
+
               <div className="space-y-4">
                 {recentItems.length > 0 ? (
                   recentItems.map((item) => (
+
                     <div key={item.id} className="flex items-center justify-between p-4 border rounded-lg">
+
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                           <h4 className="font-medium">{item.title || item.name}</h4>
@@ -420,8 +561,8 @@ export default function DashboardPage() {
                               item.status === "Resolved" || item.status === "Completed"
                                 ? "default"
                                 : item.status === "In Progress"
-                                ? "secondary"
-                                : "destructive"
+                                  ? "secondary"
+                                  : "destructive"
                             }
                           >
                             {item.status}
@@ -432,10 +573,10 @@ export default function DashboardPage() {
                               item.priority === "High"
                                 ? "border-red-500 text-red-700"
                                 : item.priority === "Medium"
-                                ? "border-yellow-500 text-yellow-700"
-                                : item.priority
-                                ? "border-green-500 text-green-700"
-                                : "hidden"
+                                  ? "border-yellow-500 text-yellow-700"
+                                  : item.priority
+                                    ? "border-green-500 text-green-700"
+                                    : "hidden"
                             }
                           >
                             {item.priority || ""}
@@ -453,9 +594,16 @@ export default function DashboardPage() {
                           <span>{item.createdOn || item.startedOn}</span>
                         </div>
                       </div>
-                      <Button variant="outline" size="sm">
-                        View Details
-                      </Button>
+                      <ProdjectDialog
+
+
+                        item={item}
+                      >
+                        <Button variant="outline" size="sm">
+                          View Details
+                        </Button>
+
+                      </ProdjectDialog>
                     </div>
                   ))
                 ) : (
@@ -464,6 +612,7 @@ export default function DashboardPage() {
                   </p>
                 )}
               </div>
+
             </CardContent>
           </Card>
         </div>

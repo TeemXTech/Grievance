@@ -6,13 +6,22 @@ import interactionPlugin from "@fullcalendar/interaction";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+const getDynamicDateTime = (daysOffset, time = "09:00:00") => {
+  const date = new Date();
+  date.setDate(date.getDate() + daysOffset);
 
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+
+  return `${year}-${month}-${day}T${time}`;
+};
 export default function EventCalendar() {
   const [events, setEvents] = useState([
     {
       id: 1,
       title: "Political Rally in Central Square",
-      start: "2025-09-10T09:00:00",
+      start: getDynamicDateTime(0, "09:00:00"), // Today at 09:00
       type: "rally",
       assignedTo: null,
       color: "#ef4444",
@@ -22,7 +31,7 @@ export default function EventCalendar() {
     {
       id: 2,
       title: "Constituency Meeting",
-      start: "2025-09-10T14:00:00",
+      start: getDynamicDateTime(0, "14:00:00"), // Today at 14:00
       type: "meeting",
       assignedTo: "PA Srinivas",
       color: "#eab308",
@@ -32,7 +41,7 @@ export default function EventCalendar() {
     {
       id: 3,
       title: "Campaign Strategy Session",
-      start: "2025-09-11T10:30:00",
+      start: getDynamicDateTime(1, "10:30:00"), // Tomorrow
       type: "meeting",
       assignedTo: null,
       color: "#eab308",
@@ -42,7 +51,7 @@ export default function EventCalendar() {
     {
       id: 4,
       title: "Voter Outreach Program",
-      start: "2025-09-11T15:00:00",
+      start: getDynamicDateTime(1, "15:00:00"),
       type: "outreach",
       assignedTo: "Field Officer Ramesh",
       color: "#3b82f6",
@@ -52,7 +61,7 @@ export default function EventCalendar() {
     {
       id: 5,
       title: "Party Conference",
-      start: "2025-09-10T11:00:00",
+      start: getDynamicDateTime(0, "11:00:00"),
       type: "conference",
       assignedTo: null,
       color: "#3b82f6",
@@ -62,7 +71,7 @@ export default function EventCalendar() {
     {
       id: 6,
       title: "Youth Wing Meeting",
-      start: "2025-09-10T12:00:00",
+      start: getDynamicDateTime(0, "12:00:00"),
       type: "meeting",
       assignedTo: null,
       color: "#eab308",
@@ -72,7 +81,7 @@ export default function EventCalendar() {
     {
       id: 7,
       title: "Press Conference",
-      start: "2025-09-11T13:00:00",
+      start: getDynamicDateTime(1, "13:00:00"),
       type: "conference",
       assignedTo: "Back Officer Priya",
       color: "#3b82f6",
@@ -82,7 +91,7 @@ export default function EventCalendar() {
     {
       id: 8,
       title: "Public Forum",
-      start: "2025-09-10T16:00:00",
+      start: getDynamicDateTime(0, "16:00:00"),
       type: "outreach",
       assignedTo: null,
       color: "#3b82f6",
@@ -92,7 +101,7 @@ export default function EventCalendar() {
     {
       id: 9,
       title: "Election Strategy Session",
-      start: "2025-09-11T17:00:00",
+      start: getDynamicDateTime(1, "17:00:00"),
       type: "meeting",
       assignedTo: null,
       color: "#eab308",
@@ -102,7 +111,7 @@ export default function EventCalendar() {
     {
       id: 10,
       title: "Community Outreach",
-      start: "2025-09-10T18:00:00",
+      start: getDynamicDateTime(0, "18:00:00"),
       type: "outreach",
       assignedTo: "Field Officer Kumar",
       color: "#3b82f6",
@@ -112,7 +121,7 @@ export default function EventCalendar() {
     {
       id: 11,
       title: "Policy Review Meeting",
-      start: "2025-09-11T19:00:00",
+      start: getDynamicDateTime(1, "19:00:00"),
       type: "meeting",
       assignedTo: null,
       color: "#eab308",
@@ -122,7 +131,7 @@ export default function EventCalendar() {
     {
       id: 12,
       title: "Fundraising Event",
-      start: "2025-09-10T20:00:00",
+      start: getDynamicDateTime(0, "20:00:00"),
       type: "outreach",
       assignedTo: null,
       color: "#3b82f6",
@@ -132,7 +141,7 @@ export default function EventCalendar() {
     {
       id: 13,
       title: "Volunteer Coordination Meeting",
-      start: "2025-09-10T08:00:00",
+      start: getDynamicDateTime(0, "08:00:00"),
       type: "meeting",
       assignedTo: null,
       color: "#eab308",
@@ -142,7 +151,7 @@ export default function EventCalendar() {
     {
       id: 14,
       title: "Campaign Rally",
-      start: "2025-09-11T21:00:00",
+      start: getDynamicDateTime(2, "21:00:00"), // Day after tomorrow
       type: "rally",
       assignedTo: null,
       color: "#ef4444",
@@ -152,7 +161,7 @@ export default function EventCalendar() {
     {
       id: 15,
       title: "Legislative Briefing",
-      start: "2025-09-11T22:00:00",
+      start: getDynamicDateTime(2, "22:00:00"),
       type: "meeting",
       assignedTo: null,
       color: "#eab308",
@@ -160,6 +169,7 @@ export default function EventCalendar() {
       invitedBy: "Legislative Team",
     },
   ]);
+;
   const [selectedDateEvents, setSelectedDateEvents] = useState([]);
   const [modalIsOpen, setModalIsOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState("");
