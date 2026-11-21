@@ -590,7 +590,6 @@ export default function MinisterDashboard() {
             </Card>
           </div>
         </div>
-      </div>
 
       {/* Assignment Modal */}
       {showAssignModal && selectedEvent && (
