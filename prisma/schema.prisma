@@ -33,6 +33,9 @@ model User {
   projectStatusUpdates ProjectStatusUpdate[]
   assignedTTDs         TTDRequest[]            @relation("TTDAssignedTo")
   ttdRequests          TTDRequest[]
+  handledPetitions     PetitionRequest[]       @relation("HandlingPA")
+  assignedPetitions    PetitionRequest[]       @relation("AssignedOfficial")
+  handledWorks         PublicWork[]            @relation("WorkHandlingPA")
 }
 
 model Category {
@@ -313,6 +316,8 @@ enum Role {
   PA
   FIELD_OFFICER
   BACK_OFFICER
+  GOVERNMENT_OFFICIAL
+  LOCAL_LEADER
 }
 
 enum GrievanceStatus {
@@ -375,4 +380,303 @@ enum GrievanceType {
   JOB_REQUEST
   TTD_REQUEST
   OTHER
+}
+
+// ==========================================
+// PHASE 1: REAL-WORLD CONSTITUENCY PLATFORM MODELS
+// ==========================================
+
+// 1. Geography: Mandals & Villages
+model Mandal {
+  id          String            @id @default(cuid())
+  name        String            @unique
+  district    String            @default("Peddapalli")
+  code        String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  villages    Village[]
+  leaders     LocalLeader[]
+  works       PublicWork[]
+  petitions   PetitionRequest[]
+}
+
+model Village {
+  id          String            @id @default(cuid())
+  name        String
+  mandalId    String
+  mandal      Mandal            @relation(fields: [mandalId], references: [id], onDelete: Cascade)
+  pincode     String?
+  population  Int?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  leaders     LocalLeader[]
+  works       PublicWork[]
+  petitions   PetitionRequest[]
+
+  @@unique([name, mandalId])
+}
+
+// 2. Local Leaders (The Quick-Glance Memory Feature)
+model LocalLeader {
+  id               String            @id @default(cuid())
+  name             String
+  phone            String            @db.VarChar(32)
+  email            String?
+  designation      String            // e.g. "Sarpanch", "MPTC Member", "Ward Member", "Youth Leader"
+  partyRole        String?           // e.g. "Village President", "Mandal In-charge"
+  photoUrl         String?
+  mandalId         String?
+  mandal           Mandal?           @relation(fields: [mandalId], references: [id])
+  villageId        String?
+  village          Village?          @relation(fields: [villageId], references: [id])
+  villageName      String?
+  mandalName       String?
+  notes            String?           // General background notes about the leader
+  privateNotes     String?           // Confidential notes for Minister & PA only
+  isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  referredRequests PetitionRequest[] @relation("ReferredByLeader")
+  referredWorks    PublicWork[]      @relation("RequestedByLeader")
+}
+
+// 3. Petitions & Requests (Replacing Paper Slips)
+enum PetitionType {
+  CMRF_MEDICAL        // Chief Minister Relief Fund / Urgent Medical
+  JOB_EMPLOYMENT      // Job & Skill Requests
+  EMPLOYEE_TRANSFER   // Government Employee Transfer / Posting
+  SCHEME_FINANCIAL    // Financial Aid / Welfare Scheme
+  PERSONAL_GRIEVANCE  // Land, Certificate, Pension, Family Issue
+  VILLAGE_WORK        // Small village request
+  TTD_DARSHAN         // Temple Darshan & Accommodation
+  OTHER
+}
+
+enum PetitionStatus {
+  PENDING
+  SUBMITTED_TO_PA
+  ASSIGNED_TO_OFFICIAL
+  UNDER_REVIEW
+  SANCTIONED
+  RESOLVED
+  REJECTED
+  CLOSED
+}
+
+model PetitionRequest {
+  id                     String            @id @default(cuid())
+  trackingNumber         String            @unique // e.g. REQ-CMRF-2026-001
+  type                   PetitionType      @default(PERSONAL_GRIEVANCE)
+  title                  String
+  description            String
+  priority               Priority          @default(MEDIUM)
+  status                 PetitionStatus    @default(PENDING)
+
+  // 1. Citizen / Applicant Details
+  applicantName          String
+  applicantPhone         String            @db.VarChar(32)
+  applicantAadhar        String?
+  applicantAddress       String?
+  district               String?           @default("Peddapalli")
+  mandalId               String?
+  mandal                 Mandal?           @relation(fields: [mandalId], references: [id])
+  villageId              String?
+  village                Village?          @relation(fields: [villageId], references: [id])
+  mandalName             String?
+  villageName            String?
+
+  // 2. Local Leader Referral (Who brought this person/case)
+  referredByLeaderId     String?
+  referredByLeader       LocalLeader?      @relation("ReferredByLeader", fields: [referredByLeaderId], references: [id])
+  referredByLeaderName   String?
+  leaderEndorsementNote  String?
+
+  // 3. PA Handling the file
+  handlingPaId           String?
+  handlingPa             User?             @relation("HandlingPA", fields: [handlingPaId], references: [id])
+  handlingPaName         String?
+
+  // 4. Official / Department it is assigned to
+  assignedOfficialId     String?
+  assignedOfficial       User?             @relation("AssignedOfficial", fields: [assignedOfficialId], references: [id])
+  assignedOfficialName   String?
+  assignedDepartment     String?           // e.g. "Revenue / MRO", "Health Dept", "Panchayat Raj"
+
+  // 5. Private Internal Notes (Visible ONLY to Minister & PA)
+  privateNotes           String?
+
+  // Category-specific details
+  hospitalName           String?           // For CMRF / Medical
+  medicalCondition       String?           // For CMRF / Medical
+  requestedAmount        Float?            // For CMRF / Financial Aid
+  sanctionedAmount       Float?            // Amount approved by Minister / Govt
+  currentPosting         String?           // For Employee Transfers
+  requestedPosting       String?           // For Employee Transfers
+  employeeDesignation    String?           // For Employee Transfers
+  qualification          String?           // For Job Requests
+  skillsOrResumeNotes    String?           // For Job Requests
+
+  // Timers & Follow-up tracking
+  daysAllowed            Int?              @default(7) // Days before overdue flag
+  isOverdue              Boolean           @default(false)
+  dueDate                DateTime?
+  lastFollowUpAt         DateTime?         @default(now())
+  resolvedAt             DateTime?
+
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+
+  timeline               RequestTimeline[]
+  attachments            FileAttachment[]
+}
+
+// Follow-up history / timeline for every action taken on a petition
+model RequestTimeline {
+  id                 String           @id @default(cuid())
+  petitionRequestId  String
+  petition           PetitionRequest  @relation(fields: [petitionRequestId], references: [id], onDelete: Cascade)
+  fromStatus         PetitionStatus?
+  toStatus           PetitionStatus
+  actionTaken        String           // e.g. "Sent endorsement letter to District Collector", "Spoke to DMHO"
+  remarks            String?
+  performedByName    String           // e.g. "PA Srinivas"
+  performedByRole    String           // e.g. "PA", "OFFICIAL", "MINISTER"
+  isPrivateNote      Boolean          @default(false) // True if visible only to Minister/PA
+  createdAt          DateTime         @default(now())
+}
+
+// 4. Public Works & Constituency Tracking
+enum WorkCategory {
+  ROADS_BRIDGES
+  DRINKING_WATER
+  EDUCATION_SCHOOLS
+  HEALTH_CLINICS
+  ELECTRICITY_LIGHTS
+  COMMUNITY_HALL
+  DRAINAGE_SANITATION
+  IRRIGATION_LAKES
+  OTHER
+}
+
+enum WorkStage {
+  PLANNED
+  PROPOSED
+  SANCTIONED
+  TENDER_STAGE
+  IN_PROGRESS
+  COMPLETED
+  STUCK_DELAYED
+}
+
+model PublicWork {
+  id                    String            @id @default(cuid())
+  workCode              String            @unique // e.g. WRK-RD-2026-001
+  title                 String            // e.g. "BT Road from Main Road to Harijanawada"
+  description           String?
+  category              WorkCategory      @default(ROADS_BRIDGES)
+  stage                 WorkStage         @default(PLANNED)
+
+  // Location
+  district              String            @default("Peddapalli")
+  mandalId              String?
+  mandal                Mandal?           @relation(fields: [mandalId], references: [id])
+  villageId             String?
+  village               Village?          @relation(fields: [villageId], references: [id])
+  mandalName            String?
+  villageName           String?
+  wardNumber            String?
+
+  // Financials
+  estimatedBudget       Float?
+  sanctionedBudget      Float?
+  spentBudget           Float?            @default(0)
+
+  // Dates
+  sanctionedDate        DateTime?
+  targetCompletionDate  DateTime?
+  actualCompletionDate  DateTime?
+
+  // People & Roles
+  requestedByLeaderId   String?
+  requestedByLeader     LocalLeader?      @relation("RequestedByLeader", fields: [requestedByLeaderId], references: [id])
+  requestedByLeaderName String?
+  handlingPaId          String?
+  handlingPa            User?             @relation("WorkHandlingPA", fields: [handlingPaId], references: [id])
+  handlingPaName        String?
+  supervisingOfficial   String?           // e.g. "EE Panchayat Raj Sri Ramana"
+  executingDepartment   String?           // e.g. "Roads & Buildings (R&B)"
+  contractorName        String?
+  contractorPhone       String?
+
+  // Private Internal Notes
+  privateNotes          String?
+  stuckReason           String?           // If delayed, why? (e.g. "Forest clearance pending")
+
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  milestones            WorkTimeline[]
+  attachments           FileAttachment[]
+}
+
+// Work Milestones & Progress Log
+model WorkTimeline {
+  id              String       @id @default(cuid())
+  publicWorkId    String
+  publicWork      PublicWork   @relation(fields: [publicWorkId], references: [id], onDelete: Cascade)
+  stage           WorkStage
+  percentageDone  Int          @default(0) // 0 to 100%
+  updateNote      String       // e.g. "Earth work completed, laying gravel started"
+  updatedByName   String
+  updatedByRole   String
+  createdAt       DateTime     @default(now())
+}
+
+// 5. Attachments (Petitions, Letters, Photos)
+model FileAttachment {
+  id                 String           @id @default(cuid())
+  fileName           String
+  originalName       String
+  fileUrl            String
+  fileType           String           // e.g. "HANDWRITTEN_PETITION", "SANCTION_ORDER", "WORK_PROGRESS_PHOTO", "MEDICAL_BILL"
+  mimeType           String?
+  fileSize           Int?
+  uploadedByName     String?
+  petitionRequestId  String?
+  petitionRequest    PetitionRequest? @relation(fields: [petitionRequestId], references: [id], onDelete: Cascade)
+  publicWorkId       String?
+  publicWork         PublicWork?      @relation(fields: [publicWorkId], references: [id], onDelete: Cascade)
+  createdAt          DateTime         @default(now())
+}
+
+// 6. Minister's Calendar & Tour Schedule
+enum TourEventType {
+  VILLAGE_TOUR
+  GRIEVANCE_DAY
+  DEPARTMENT_REVIEW
+  VIP_MEETING
+  PUBLIC_MEETING
+  PRESS_CONFERENCE
+  OTHER
+}
+
+model TourAppointment {
+  id               String         @id @default(cuid())
+  title            String
+  description      String?
+  eventType        TourEventType  @default(VILLAGE_TOUR)
+  startDate        DateTime
+  endDate          DateTime?
+  location         String
+  mandalName       String?
+  villageName      String?
+  linkedLeaderId   String?
+  linkedLeaderName String?
+  vipGuests        String?
+  status           String         @default("SCHEDULED") // SCHEDULED, CONFIRMED, COMPLETED, CANCELLED
+  notes            String?
+  privateNotes     String?        // Minister/PA only
+  createdById      String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 }
