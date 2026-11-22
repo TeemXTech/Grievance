@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import { PrismaClient, GrievanceStatus, Priority } from "@prisma/client"
+import { prisma } from "@/lib/prisma"
+import { getAuthUser } from "@/lib/auth-middleware"
+import { GrievanceStatus, Priority } from "@prisma/client"
 import { z } from "zod"
-
-const prisma = new PrismaClient()
 
 // Validation schemas
 const createGrievanceSchema = z.object({
@@ -189,26 +189,28 @@ export async function POST(req: NextRequest) {
       }
     })
 
-    // Create initial status update
-    await createStatusUpdate(
-      grievance.id,
-      'system', // You might want to get actual user ID from session
-      null,
-      GrievanceStatus.PENDING,
-      'Grievance created'
-    )
-
-    // Create audit log
-    await createAuditLog(
-      'CREATE',
-      'GRIEVANCE',
-      grievance.id,
-      'system', // You might want to get actual user ID from session
-      null,
-      grievance,
-      ipAddress,
-      userAgent
-    )
+    // Create initial status update — skip if no authenticated user
+    const user = await getAuthUser(req)
+    const actorId = user?.id
+    if (actorId) {
+      await createStatusUpdate(
+        grievance.id,
+        actorId,
+        null,
+        GrievanceStatus.PENDING,
+        'Grievance created'
+      )
+      await createAuditLog(
+        'CREATE',
+        'GRIEVANCE',
+        grievance.id,
+        actorId,
+        null,
+        { id: grievance.id, referenceNumber: grievance.referenceNumber },
+        ipAddress ?? undefined,
+        userAgent ?? undefined
+      )
+    }
 
     return NextResponse.json(grievance, { status: 201 })
   } catch (error) {

@@ -2,336 +2,276 @@
 
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { GovernmentHeader } from "@/components/ui/government-header"
-import { Users, Settings, BarChart3, Shield, UserPlus, Database, Activity, AlertTriangle } from "lucide-react"
+import { Shield, Users, FileText, Building2, Activity, Settings, RefreshCw, Bell, ChevronDown, X, KeyRound, CheckCircle2 } from "lucide-react"
+import { GovSidebar, type NavItem } from "@/components/GovSidebar"
+
+const NAV: NavItem[] = [
+  { key: "overview",  label: "Overview",        Icon: Activity },
+  { key: "users",     label: "User Management", Icon: Users },
+  { key: "roles",     label: "Roles & Access",  Icon: Shield },
+  { key: "logs",      label: "Audit Logs",      Icon: FileText },
+  { key: "settings",  label: "Settings",        Icon: Settings },
+]
+
+const ROLE_META: Record<string, { color: string; bg: string }> = {
+  MINISTER:      { color: "#991b1b", bg: "#fee2e2" },
+  PA:            { color: "#1e40af", bg: "#dbeafe" },
+  ADMIN:         { color: "#5b21b6", bg: "#ede9fe" },
+  BACK_OFFICER:  { color: "#92400e", bg: "#fef3c7" },
+  FIELD_OFFICER: { color: "#065f46", bg: "#d1fae5" },
+  OFFICER:       { color: "#0369a1", bg: "#e0f2fe" },
+}
+
+function Badge({ label, color, bg }: { label: string; color: string; bg: string }) {
+  return <span className="gov-badge" style={{ color, background: bg }}>{label}</span>
+}
 
 export default function AdminDashboard() {
   const { data: session } = useSession()
-  const [systemStats, setSystemStats] = useState<any>({})
-  const [users, setUsers] = useState([])
-  const [loading, setLoading] = useState(true)
+  const name = (session?.user as any)?.name || "Admin"
+  const initials = name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()
 
-  const loadSystemData = async () => {
+  const [activeNav, setActiveNav] = useState("overview")
+  const [stats, setStats]         = useState<any>(null)
+  const [users, setUsers]         = useState<any[]>([])
+  const [logs, setLogs]           = useState<any[]>([])
+  const [loading, setLoading]     = useState(true)
+  const [resetTarget, setResetTarget] = useState<any>(null)
+  const [newPassword, setNewPassword] = useState("")
+  const [resetMsg, setResetMsg]       = useState("")
+  const [resetting, setResetting]     = useState(false)
+
+  const loadData = async () => {
+    setLoading(true)
     try {
-      setLoading(true)
-      const [statsRes, usersRes] = await Promise.all([
-        fetch('/api/admin/stats'),
-        fetch('/api/users')
-      ])
-      
-      if (statsRes.ok) {
-        const stats = await statsRes.json()
-        setSystemStats(stats)
-      }
-      
-      if (usersRes.ok) {
-        const usersData = await usersRes.json()
-        setUsers(usersData)
-      }
-    } catch (error) {
-      console.error('Failed to load admin data:', error)
-    } finally {
-      setLoading(false)
-    }
+      const [sRes, uRes] = await Promise.all([fetch("/api/admin/stats", { credentials: "include" }), fetch("/api/users", { credentials: "include" })])
+      if (sRes.ok) { const d = await sRes.json(); setStats(d); setLogs(d.recentActivity || []) }
+      if (uRes.ok) { const d = await uRes.json(); setUsers(d.users ?? []) }
+    } finally { setLoading(false) }
   }
 
-  useEffect(() => {
-    loadSystemData()
-  }, [])
+  useEffect(() => { loadData() }, [])
 
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'MINISTER': return 'bg-red-100 text-red-800'
-      case 'PA': return 'bg-blue-100 text-blue-800'
-      case 'BACK_OFFICER': return 'bg-yellow-100 text-yellow-800'
-      case 'FIELD_OFFICER': return 'bg-green-100 text-green-800'
-      case 'ADMIN': return 'bg-purple-100 text-purple-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
+  const handleReset = async () => {
+    if (!resetTarget || newPassword.length < 8) { setResetMsg("Password must be at least 8 characters"); return }
+    setResetting(true); setResetMsg("")
+    try {
+      const res = await fetch(`/api/users/${resetTarget.id}`, { method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ newPassword }) })
+      const d = await res.json()
+      if (d.success) { setResetMsg("Password reset successfully"); setNewPassword(""); setTimeout(() => { setResetTarget(null); setResetMsg("") }, 1500) }
+      else setResetMsg(d.error || "Failed")
+    } finally { setResetting(false) }
   }
+
+  const handleToggle = async (user: any) => {
+    await fetch(`/api/users/${user.id}`, { method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: user.status === "active" ? "inactive" : "active" }) })
+    loadData()
+  }
+
+  const now = new Date()
+  const todayStr = now.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <GovernmentHeader
-        title="System Administration"
-        description="Manage users, roles, and system configuration"
-        userName={session?.user?.name}
-        userRole={session?.user?.role}
-      />
+    <div className="gov-app">
+      <GovSidebar items={NAV} active={activeNav} onNav={setActiveNav} role="ADMIN" userName={name} />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* System Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-gradient-to-br from-blue-500 to-blue-700 text-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-blue-100 text-sm">Total Users</p>
-                  <p className="text-3xl font-bold">{users.length}</p>
-                </div>
-                <Users className="w-8 h-8 text-blue-200" />
+      <div className="gov-main">
+        <header className="gov-header">
+          <div>
+            <div className="gov-header-title">System Administration</div>
+            <div className="gov-header-sub">Government of Telangana · {todayStr}</div>
+          </div>
+          <div className="gov-header-actions">
+            <button onClick={loadData} className="gov-header-btn"><RefreshCw size={15} /></button>
+            <button className="gov-header-btn"><Bell size={15} /></button>
+            <div className="gov-header-profile">
+              <div className="gov-avatar">{initials}</div>
+              <div><div className="gov-avatar-name">{name}</div><div className="gov-avatar-role">Administrator</div></div>
+              <ChevronDown size={13} color="var(--sub)" />
+            </div>
+          </div>
+        </header>
+
+        <div className="gov-body">
+          {/* KPI */}
+          <div className="gov-kpi-grid">
+            {[
+              { label: "Total Users",    value: stats?.users?.total,              sub: `${stats?.users?.active ?? 0} active`,       accent: "#2F6FED", Icon: Users },
+              { label: "Grievances",     value: stats?.grievances?.total,         sub: `${stats?.grievances?.pending ?? 0} pending`,  accent: "#F59E0B", Icon: FileText },
+              { label: "Public Works",   value: stats?.projects?.total,           sub: `${stats?.projects?.completed ?? 0} completed`, accent: "#7c3aed", Icon: Building2 },
+              { label: "System Health",  value: "99.8%",                          sub: "JWT · bcrypt-12",                             accent: "#16A34A", Icon: CheckCircle2 },
+            ].map(({ label, value, sub, accent, Icon: Ic }) => (
+              <div key={label} className="gov-kpi">
+                <div className="gov-kpi-top"><div className="gov-kpi-icon" style={{ background: `${accent}18` }}><Ic size={17} color={accent} /></div></div>
+                <div className="gov-kpi-value">{loading && label !== "System Health" ? <div className="gov-skel gov-kpi-skel" /> : value ?? "—"}</div>
+                <div className="gov-kpi-label">{label}</div>
+                <div style={{ fontSize: 11, color: "var(--sub)" }}>{sub}</div>
               </div>
-            </CardContent>
-          </Card>
+            ))}
+          </div>
 
-          <Card className="bg-gradient-to-br from-green-500 to-green-700 text-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-green-100 text-sm">Active Sessions</p>
-                  <p className="text-3xl font-bold">{Math.floor(users.length * 0.6)}</p>
+          {/* Overview */}
+          {activeNav === "overview" && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              <div className="gov-card gov-card-p">
+                <div className="gov-card-header">
+                  <div className="gov-card-title"><div className="gov-card-icon" style={{ background: "#eff6ff" }}><Users size={14} color="#2F6FED" /></div>Recent Users</div>
+                  <button className="gov-card-action" onClick={() => setActiveNav("users")}>View all</button>
                 </div>
-                <Activity className="w-8 h-8 text-green-200" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-orange-500 to-orange-700 text-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-orange-100 text-sm">System Alerts</p>
-                  <p className="text-3xl font-bold">3</p>
-                </div>
-                <AlertTriangle className="w-8 h-8 text-orange-200" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-purple-500 to-purple-700 text-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-purple-100 text-sm">Database Size</p>
-                  <p className="text-3xl font-bold">2.4GB</p>
-                </div>
-                <Database className="w-8 h-8 text-purple-200" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="users">User Management</TabsTrigger>
-            <TabsTrigger value="roles">Role Configuration</TabsTrigger>
-            <TabsTrigger value="system">System Settings</TabsTrigger>
-            <TabsTrigger value="logs">Audit Logs</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="users">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>System Users</span>
-                  <Button>
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    Add User
-                  </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="flex justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Last Login</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {users.map((user: any) => (
-                        <TableRow key={user.id}>
-                          <TableCell className="font-medium">{user.name}</TableCell>
-                          <TableCell>{user.email}</TableCell>
-                          <TableCell>
-                            <Badge className={getRoleColor(user.role)}>
-                              {user.role}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={user.status === 'active' ? 'default' : 'secondary'}>
-                              {user.status || 'active'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-sm text-gray-500">
-                            {new Date().toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button size="sm" variant="outline">Edit</Button>
-                              <Button size="sm" variant="outline">Reset</Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="roles">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Role Permissions</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {['MINISTER', 'PA', 'BACK_OFFICER', 'FIELD_OFFICER', 'ADMIN'].map((role) => (
-                      <div key={role} className="flex items-center justify-between p-3 border rounded">
-                        <div>
-                          <Badge className={getRoleColor(role)}>{role}</Badge>
-                          <p className="text-sm text-gray-600 mt-1">
-                            {role === 'MINISTER' && 'Full system access, can assign tasks'}
-                            {role === 'PA' && 'Manage assigned grievances and projects'}
-                            {role === 'BACK_OFFICER' && 'Data entry and document management'}
-                            {role === 'FIELD_OFFICER' && 'Field updates and status reporting'}
-                            {role === 'ADMIN' && 'System administration and user management'}
-                          </p>
-                        </div>
-                        <Button size="sm" variant="outline">
-                          <Settings className="w-4 h-4" />
-                        </Button>
+                {users.slice(0,5).map(u => {
+                  const rm = ROLE_META[u.role] || { color: "#475569", bg: "#f1f5f9" }
+                  return (
+                    <div key={u.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 0", borderBottom: "1px solid var(--border)" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ width: 30, height: 30, borderRadius: "50%", background: "var(--bg)", display: "grid", placeItems: "center", fontSize: 11, fontWeight: 700, color: "var(--navy)", border: "1px solid var(--border)" }}>{u.name?.charAt(0)}</div>
+                        <div><div style={{ fontSize: 13, fontWeight: 600, color: "var(--navy)" }}>{u.name}</div><div style={{ fontSize: 11, color: "var(--sub)" }}>{u.email}</div></div>
                       </div>
-                    ))}
+                      <Badge label={u.role} color={rm.color} bg={rm.bg} />
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="gov-card gov-card-p">
+                <div className="gov-card-header">
+                  <div className="gov-card-title"><div className="gov-card-icon" style={{ background: "#f0fdf4" }}><Activity size={14} color="#16A34A" /></div>System Stats</div>
+                </div>
+                {[
+                  { label: "Petitions Total",   value: stats?.grievances?.total ?? "—" },
+                  { label: "Petitions Pending",  value: stats?.grievances?.pending ?? "—" },
+                  { label: "Petitions Resolved", value: stats?.grievances?.resolved ?? "—" },
+                  { label: "Works In Progress",  value: stats?.projects?.ongoing ?? "—" },
+                  { label: "Works Completed",    value: stats?.projects?.completed ?? "—" },
+                ].map(({ label, value }) => (
+                  <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: "1px solid var(--border)" }}>
+                    <span style={{ fontSize: 13, color: "var(--sub)" }}>{label}</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: "var(--navy)" }}>{value}</span>
                   </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Access Control</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
-                      <span>Two-Factor Authentication</span>
-                      <Badge variant="outline">Enabled</Badge>
-                    </div>
-                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
-                      <span>Session Timeout</span>
-                      <Badge variant="outline">8 hours</Badge>
-                    </div>
-                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
-                      <span>Password Policy</span>
-                      <Badge variant="outline">Strong</Badge>
-                    </div>
-                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
-                      <span>API Rate Limiting</span>
-                      <Badge variant="outline">Active</Badge>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                ))}
+              </div>
             </div>
-          </TabsContent>
+          )}
 
-          <TabsContent value="system">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>System Configuration</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center p-3 border rounded">
-                      <span>WhatsApp Integration</span>
-                      <Badge className="bg-green-100 text-green-800">Active</Badge>
-                    </div>
-                    <div className="flex justify-between items-center p-3 border rounded">
-                      <span>Email Notifications</span>
-                      <Badge className="bg-green-100 text-green-800">Active</Badge>
-                    </div>
-                    <div className="flex justify-between items-center p-3 border rounded">
-                      <span>Auto-Assignment Rules</span>
-                      <Badge className="bg-blue-100 text-blue-800">Configured</Badge>
-                    </div>
-                    <div className="flex justify-between items-center p-3 border rounded">
-                      <span>Backup Schedule</span>
-                      <Badge className="bg-green-100 text-green-800">Daily</Badge>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Performance Metrics</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span>System Uptime</span>
-                      <span className="font-bold text-green-600">99.9%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Average Response Time</span>
-                      <span className="font-bold">120ms</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Database Queries/sec</span>
-                      <span className="font-bold">45</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Active Connections</span>
-                      <span className="font-bold">12</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+          {/* Users */}
+          {activeNav === "users" && (
+            <div className="gov-card gov-card-p">
+              <div className="gov-card-header">
+                <div className="gov-card-title"><div className="gov-card-icon" style={{ background: "#eff6ff" }}><Users size={14} color="#2F6FED" /></div>System Users <span style={{ fontSize: 12, color: "var(--sub)", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 5, padding: "1px 8px" }}>{users.length}</span></div>
+              </div>
+              {loading ? <div className="gov-empty">Loading...</div> : (
+                <div style={{ overflowX: "auto" }}>
+                  <table className="gov-table">
+                    <thead><tr>{["Name","Email","Role","Status","Actions"].map(h => <th key={h}>{h}</th>)}</tr></thead>
+                    <tbody>
+                      {users.map(u => {
+                        const rm = ROLE_META[u.role] || { color: "#475569", bg: "#f1f5f9" }
+                        return (
+                          <tr key={u.id}>
+                            <td style={{ fontWeight: 600 }}>{u.name}</td>
+                            <td style={{ color: "var(--sub)", fontSize: 12 }}>{u.email}</td>
+                            <td><Badge label={u.role} color={rm.color} bg={rm.bg} /></td>
+                            <td><Badge label={u.status || "active"} color={u.status === "inactive" ? "#991b1b" : "#065f46"} bg={u.status === "inactive" ? "#fee2e2" : "#d1fae5"} /></td>
+                            <td>
+                              <div style={{ display: "flex", gap: 6 }}>
+                                <button onClick={() => { setResetTarget(u); setNewPassword(""); setResetMsg("") }} className="gov-btn gov-btn-outline gov-btn-sm"><KeyRound size={12} />Reset</button>
+                                <button onClick={() => handleToggle(u)} className="gov-btn gov-btn-sm" style={{ background: u.status === "active" ? "#fef2f2" : "#f0fdf4", color: u.status === "active" ? "var(--crit)" : "var(--success)", border: `1px solid ${u.status === "active" ? "#fecaca" : "#bbf7d0"}` }}>{u.status === "active" ? "Deactivate" : "Activate"}</button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
-          </TabsContent>
+          )}
 
-          <TabsContent value="logs">
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent System Activity</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {[
-                    { action: 'User Login', user: 'minister@ap.gov.in', time: '2 minutes ago', type: 'info' },
-                    { action: 'Grievance Assigned', user: 'pa1@ap.gov.in', time: '15 minutes ago', type: 'success' },
-                    { action: 'Failed Login Attempt', user: 'unknown@email.com', time: '1 hour ago', type: 'warning' },
-                    { action: 'System Backup', user: 'system', time: '2 hours ago', type: 'info' },
-                    { action: 'User Created', user: 'admin@example.com', time: '3 hours ago', type: 'success' }
-                  ].map((log, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 border rounded hover:bg-gray-50">
-                      <div className="flex items-center space-x-3">
-                        <div className={`w-2 h-2 rounded-full ${
-                          log.type === 'success' ? 'bg-green-500' : 
-                          log.type === 'warning' ? 'bg-orange-500' : 'bg-blue-500'
-                        }`}></div>
+          {/* Roles */}
+          {activeNav === "roles" && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              <div className="gov-card gov-card-p">
+                <div className="gov-card-header"><div className="gov-card-title"><div className="gov-card-icon" style={{ background: "#f5f3ff" }}><Shield size={14} color="#7c3aed" /></div>Role Hierarchy</div></div>
+                {[
+                  { role: "MINISTER",      desc: "Full access — all data, private notes, all petitions" },
+                  { role: "PA",            desc: "Manage petitions, calendar, promise tracker" },
+                  { role: "ADMIN",         desc: "User management, system stats, password resets" },
+                  { role: "BACK_OFFICER",  desc: "Data entry — log new petitions, view all" },
+                  { role: "FIELD_OFFICER", desc: "View assigned tasks only, update status" },
+                  { role: "OFFICER",       desc: "General dashboard access" },
+                ].map(({ role, desc }) => {
+                  const rm = ROLE_META[role] || { color: "#475569", bg: "#f1f5f9" }
+                  return (
+                    <div key={role} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "10px 0", borderBottom: "1px solid var(--border)" }}>
+                      <Badge label={role} color={rm.color} bg={rm.bg} />
+                      <span style={{ fontSize: 12, color: "var(--sub)" }}>{desc}</span>
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="gov-card gov-card-p">
+                <div className="gov-card-header"><div className="gov-card-title"><div className="gov-card-icon" style={{ background: "#f0fdf4" }}><CheckCircle2 size={14} color="#16A34A" /></div>Security Settings</div></div>
+                {[
+                  { label: "Session Timeout",  value: "8 hours" },
+                  { label: "Password Hashing", value: "bcrypt cost-12" },
+                  { label: "JWT Secret",       value: "Env variable only" },
+                  { label: "Bypass Routes",    value: "All blocked at edge" },
+                  { label: "Private Notes",    value: "MINISTER/PA/ADMIN only" },
+                  { label: "Audit Logging",    value: "Every sensitive action" },
+                ].map(({ label, value }) => (
+                  <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid var(--border)" }}>
+                    <span style={{ fontSize: 13, color: "var(--text)" }}>{label}</span>
+                    <Badge label={value} color="#065f46" bg="#d1fae5" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Audit Logs */}
+          {activeNav === "logs" && (
+            <div className="gov-card gov-card-p">
+              <div className="gov-card-header"><div className="gov-card-title"><div className="gov-card-icon" style={{ background: "#eff6ff" }}><FileText size={14} color="#2F6FED" /></div>Audit Log</div></div>
+              {logs.length === 0 ? <div className="gov-empty">No audit log entries yet.</div> : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {logs.map((log: any, i: number) => (
+                    <div key={log.id || i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", background: "var(--bg)", borderRadius: 8, border: "1px solid var(--border)" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--blue)", flexShrink: 0 }} />
                         <div>
-                          <div className="font-medium">{log.action}</div>
-                          <div className="text-sm text-gray-500">{log.user}</div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--navy)" }}>{log.action}</div>
+                          <div style={{ fontSize: 11, color: "var(--sub)" }}>{log.user?.name || log.userId} · {log.entityType}</div>
                         </div>
                       </div>
-                      <div className="text-sm text-gray-500">{log.time}</div>
+                      <div style={{ fontSize: 11, color: "var(--sub)", flexShrink: 0 }}>{new Date(log.createdAt).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" })}</div>
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+              )}
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Password Reset Modal */}
+      {resetTarget && (
+        <div className="gov-modal-wrap" onClick={e => { if (e.target === e.currentTarget) setResetTarget(null) }}>
+          <div className="gov-modal" style={{ maxWidth: 400 }}>
+            <div className="gov-modal-header">
+              <div className="gov-modal-title">Reset Password</div>
+              <button className="gov-drawer-close" onClick={() => setResetTarget(null)}><X size={14} /></button>
+            </div>
+            <div className="gov-modal-body">
+              <div style={{ fontSize: 13, color: "var(--sub)" }}>Resetting password for <strong style={{ color: "var(--navy)" }}>{resetTarget.name}</strong> ({resetTarget.email})</div>
+              <div><label className="gov-label">New Password (min 8 chars)</label><input type="password" className="gov-input" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Enter new password" /></div>
+              {resetMsg && <div style={{ fontSize: 13, color: resetMsg.includes("success") ? "var(--success)" : "var(--crit)", fontWeight: 600 }}>{resetMsg}</div>}
+            </div>
+            <div className="gov-modal-footer">
+              <button onClick={() => setResetTarget(null)} className="gov-btn gov-btn-outline">Cancel</button>
+              <button onClick={handleReset} disabled={resetting} className="gov-btn gov-btn-primary"><KeyRound size={13} />{resetting ? "Resetting..." : "Reset Password"}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

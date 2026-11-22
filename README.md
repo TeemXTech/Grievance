@@ -36,10 +36,14 @@ npm run dev
 
 The dev script will ensure the database exists, run migrations, and seed initial data.
 
-Default users:
-- admin@example.com / password123 (ADMIN)
-- officer@example.com / password123 (OFFICER)
-- public@example.com / password123 (PUBLIC)
+Default users (all passwords: `password123`):
+- minister@gov.in (MINISTER)
+- pa@gov.in (PA)
+- back@gov.in (BACK_OFFICER)
+- field@gov.in (FIELD_OFFICER)
+- admin@gov.in (ADMIN)
+- officer@gov.in (OFFICER)
+- public@example.com (PUBLIC)
 
 ## API Routes
 

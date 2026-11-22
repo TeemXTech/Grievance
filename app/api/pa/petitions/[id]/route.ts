@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getAuthUser, hasRole } from '@/lib/auth-middleware'
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const user = await getAuthUser(req)
+    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    if (!hasRole(user, 'MINISTER', 'PA', 'ADMIN')) {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+    }
     const { id } = params
     const petition = await prisma.petitionRequest.findUnique({
       where: { id },
@@ -28,6 +34,12 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const user = await getAuthUser(req)
+    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    if (!hasRole(user, 'MINISTER', 'PA', 'ADMIN')) {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+    }
+
     const { id } = params
     const body = await req.json()
     const {
@@ -38,8 +50,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       sanctionedAmount,
       actionTaken,
       actionRemarks,
-      performedByName = 'PA Srinivas',
-      performedByRole = 'PA',
+      performedByName = user.name,
+      performedByRole = user.role,
       isPrivateNote = false,
     } = body
 

@@ -1,150 +1,109 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { getAuthUser, hasRole } from '@/lib/auth-middleware'
 
-// Mock events data - in production this would come from database
-const mockEvents = [
-  {
-    id: 1,
-    title: "Public Meeting - Water Issues",
-    date: "2024-01-15",
-    time: "10:00 AM",
-    endTime: "12:00 PM",
-    place: "Manthanani Town Hall",
-    type: "meeting",
-    color: "bg-blue-500",
-    priority: "High",
-    attendees: 150,
-    canDelegate: true,
-    delegatedTo: null,
-    agenda: "Discuss water supply issues in Jaipur and surrounding areas",
-    relatedGrievances: ["GRV-2024-MAN-001"]
-  },
-  {
-    id: 2,
-    title: "Project Inspection - PHC",
-    date: "2024-01-16",
-    time: "2:00 PM",
-    endTime: "4:00 PM",
-    place: "Ramagundam PHC",
-    type: "inspection",
-    color: "bg-green-500",
-    priority: "Medium",
-    canDelegate: true,
-    delegatedTo: "PA Srinivas",
-    agenda: "Final inspection of completed PHC upgrade project",
-    relatedProjects: [2]
-  },
-  {
-    id: 3,
-    title: "Grievance Hearing",
-    date: "2024-01-17",
-    time: "11:00 AM",
-    endTime: "1:00 PM",
-    place: "Collectorate",
-    type: "hearing",
-    color: "bg-red-500",
-    priority: "High",
-    canDelegate: false,
-    agenda: "Weekly grievance hearing session",
-    expectedGrievances: 25
-  },
-  {
-    id: 4,
-    title: "Marriage Inauguration",
-    date: "2024-01-18",
-    time: "6:00 PM",
-    endTime: "8:00 PM",
-    place: "Community Hall, Pegadapally",
-    type: "inauguration",
-    color: "bg-pink-500",
-    priority: "Low",
-    canDelegate: true,
-    delegatedTo: null,
-    agenda: "Community marriage program inauguration"
-  },
-  {
-    id: 5,
-    title: "Press Meet - Development Updates",
-    date: "2024-01-19",
-    time: "11:00 AM",
-    endTime: "12:00 PM",
-    place: "Press Club, Peddapalli",
-    type: "press",
-    color: "bg-purple-500",
-    priority: "High",
-    canDelegate: false,
-    agenda: "Quarterly development progress announcement"
+export async function GET(request: NextRequest) {
+  const user = await getAuthUser(request)
+  if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+  if (!hasRole(user, 'MINISTER', 'PA', 'ADMIN')) {
+    return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
   }
-]
 
-export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const date = searchParams.get('date')
     const type = searchParams.get('type')
 
-    let filteredEvents = mockEvents
-
+    const where: any = {}
     if (date) {
-      filteredEvents = filteredEvents.filter(event => event.date === date)
+      const start = new Date(date)
+      const end = new Date(date)
+      end.setDate(end.getDate() + 1)
+      where.startDate = { gte: start, lt: end }
     }
+    if (type) where.eventType = type
 
-    if (type) {
-      filteredEvents = filteredEvents.filter(event => event.type === type)
-    }
+    const events = await prisma.tourAppointment.findMany({
+      where,
+      orderBy: { startDate: 'asc' },
+    })
 
-    return NextResponse.json(filteredEvents)
-  } catch (error) {
-    console.error('Events API error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch events' },
-      { status: 500 }
-    )
+    // Strip privateNotes for non-privileged roles
+    const canSeePrivate = hasRole(user, 'MINISTER', 'PA', 'ADMIN')
+    const result = events.map((e) => {
+      if (!canSeePrivate) {
+        const { privateNotes, ...rest } = e
+        return rest
+      }
+      return e
+    })
+
+    return NextResponse.json({ success: true, events: result })
+  } catch (error: any) {
+    console.error('Events GET error:', error)
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const user = await getAuthUser(request)
+  if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+  if (!hasRole(user, 'MINISTER', 'PA', 'ADMIN')) {
+    return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+  }
+
   try {
     const body = await request.json()
-    
-    const newEvent = {
-      id: mockEvents.length + 1,
-      ...body,
-      delegatedTo: null
+    const { title, description, eventType = 'VILLAGE_TOUR', startDate, endDate, location, mandalName, villageName, linkedLeaderName, vipGuests, notes, privateNotes } = body
+
+    if (!title || !startDate || !location) {
+      return NextResponse.json({ success: false, error: 'title, startDate, and location are required' }, { status: 400 })
     }
 
-    mockEvents.push(newEvent)
+    const event = await prisma.tourAppointment.create({
+      data: {
+        title, description, eventType, location, mandalName, villageName,
+        linkedLeaderName, vipGuests, notes,
+        privateNotes: hasRole(user, 'MINISTER', 'PA', 'ADMIN') ? privateNotes : undefined,
+        startDate: new Date(startDate),
+        endDate: endDate ? new Date(endDate) : null,
+        status: 'SCHEDULED',
+        createdById: user.id,
+      },
+    })
 
-    return NextResponse.json(newEvent)
-  } catch (error) {
-    console.error('Create event error:', error)
-    return NextResponse.json(
-      { error: 'Failed to create event' },
-      { status: 500 }
-    )
+    return NextResponse.json({ success: true, event })
+  } catch (error: any) {
+    console.error('Events POST error:', error)
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 }
 
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
+  const user = await getAuthUser(request)
+  if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+  if (!hasRole(user, 'MINISTER', 'PA', 'ADMIN')) {
+    return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+  }
+
   try {
     const body = await request.json()
-    const { id, delegatedTo } = body
+    const { id, status, notes, privateNotes } = body
 
-    const eventIndex = mockEvents.findIndex(event => event.id === id)
-    if (eventIndex === -1) {
-      return NextResponse.json(
-        { error: 'Event not found' },
-        { status: 404 }
-      )
-    }
+    if (!id) return NextResponse.json({ success: false, error: 'Event ID required' }, { status: 400 })
 
-    mockEvents[eventIndex] = { ...mockEvents[eventIndex], delegatedTo }
+    const existing = await prisma.tourAppointment.findUnique({ where: { id } })
+    if (!existing) return NextResponse.json({ success: false, error: 'Event not found' }, { status: 404 })
 
-    return NextResponse.json(mockEvents[eventIndex])
-  } catch (error) {
-    console.error('Update event error:', error)
-    return NextResponse.json(
-      { error: 'Failed to update event' },
-      { status: 500 }
-    )
+    const updateData: any = {}
+    if (status) updateData.status = status
+    if (notes !== undefined) updateData.notes = notes
+    if (privateNotes !== undefined && hasRole(user, 'MINISTER', 'PA', 'ADMIN')) updateData.privateNotes = privateNotes
+
+    const updated = await prisma.tourAppointment.update({ where: { id }, data: updateData })
+    return NextResponse.json({ success: true, event: updated })
+  } catch (error: any) {
+    console.error('Events PUT error:', error)
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 }

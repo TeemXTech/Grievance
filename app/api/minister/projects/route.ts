@@ -1,62 +1,189 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getAuthUser, hasRole } from '@/lib/auth-middleware'
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const user = await getAuthUser(request)
+  if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+  if (!hasRole(user, 'MINISTER', 'PA', 'ADMIN', 'BACK_OFFICER')) {
+    return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+  }
+
   try {
     const { searchParams } = new URL(request.url)
-    const place = searchParams.get('place')
-    const status = searchParams.get('status')
+    const stage = searchParams.get('stage')
     const category = searchParams.get('category')
+    const mandal = searchParams.get('mandal')
+    const village = searchParams.get('village')
+    const leaderId = searchParams.get('leaderId')
+    const search = searchParams.get('search') || ''
 
     const where: any = {}
-    if (place) where.village = place
-    if (status) where.status = status
-    if (category) where.category = { name: category }
+    if (stage && stage !== 'ALL') where.stage = stage
+    if (category && category !== 'ALL') where.category = category
+    if (mandal && mandal !== 'ALL') where.mandalName = mandal
+    if (village && village !== 'ALL') where.villageName = village
+    if (leaderId && leaderId !== 'ALL') where.requestedByLeaderId = leaderId
+    if (search.trim()) {
+      where.OR = [
+        { workCode: { contains: search, mode: 'insensitive' } },
+        { title: { contains: search, mode: 'insensitive' } },
+        { villageName: { contains: search, mode: 'insensitive' } },
+        { mandalName: { contains: search, mode: 'insensitive' } },
+        { requestedByLeaderName: { contains: search, mode: 'insensitive' } },
+        { contractorName: { contains: search, mode: 'insensitive' } },
+      ]
+    }
 
-    const projects = await prisma.project.findMany({
-      where,
-      include: {
-        assignedOfficer: true,
-        category: true,
-        documents: true
+    const [works, allWorks] = await Promise.all([
+      prisma.publicWork.findMany({
+        where,
+        include: {
+          requestedByLeader: true,
+          milestones: { orderBy: { createdAt: 'desc' } },
+          attachments: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.publicWork.findMany({
+        select: { id: true, stage: true, sanctionedBudget: true, spentBudget: true },
+      }),
+    ])
+
+    const totalSanctioned = allWorks.reduce((acc, w) => acc + (w.sanctionedBudget || 0), 0)
+    const totalSpent = allWorks.reduce((acc, w) => acc + (w.spentBudget || 0), 0)
+
+    return NextResponse.json({
+      success: true,
+      count: works.length,
+      works,
+      summary: {
+        total: allWorks.length,
+        completed: allWorks.filter((w) => w.stage === 'COMPLETED').length,
+        inProgress: allWorks.filter((w) => w.stage === 'IN_PROGRESS').length,
+        sanctioned: allWorks.filter((w) => w.stage === 'SANCTIONED').length,
+        planned: allWorks.filter((w) => w.stage === 'PLANNED' || w.stage === 'PROPOSED').length,
+        stuck: allWorks.filter((w) => w.stage === 'STUCK_DELAYED').length,
+        totalSanctionedBudget: totalSanctioned,
+        totalSpentBudget: totalSpent,
       },
-      orderBy: { createdAt: 'desc' }
+    })
+  } catch (error: any) {
+    console.error('Projects GET error:', error)
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+  }
+}
+
+export async function POST(request: NextRequest) {
+  const user = await getAuthUser(request)
+  if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+  if (!hasRole(user, 'MINISTER', 'PA', 'ADMIN', 'BACK_OFFICER')) {
+    return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+  }
+
+  try {
+    const body = await request.json()
+    const {
+      title, description, category = 'ROADS_BRIDGES', stage = 'PLANNED',
+      district = 'Peddapalli', mandalName, villageName, wardNumber,
+      estimatedBudget, sanctionedBudget, requestedByLeaderId, requestedByLeaderName,
+      supervisingOfficial, executingDepartment, contractorName, contractorPhone, privateNotes,
+    } = body
+
+    if (!title) return NextResponse.json({ success: false, error: 'Work title is required' }, { status: 400 })
+
+    const count = await prisma.publicWork.count()
+    const catCode = { ROADS_BRIDGES: 'RD', DRINKING_WATER: 'WTR', EDUCATION_SCHOOLS: 'SCH', HEALTH_CLINICS: 'HLT', COMMUNITY_HALL: 'CH' }[category as string] || 'WRK'
+    const workCode = `WRK-${catCode}-${new Date().getFullYear()}-${String(count + 101).padStart(4, '0')}`
+
+    const newWork = await prisma.publicWork.create({
+      data: {
+        workCode, title, description: description || title, category, stage,
+        district, mandalName, villageName, wardNumber,
+        estimatedBudget: estimatedBudget ? parseFloat(estimatedBudget) : null,
+        sanctionedBudget: sanctionedBudget ? parseFloat(sanctionedBudget) : null,
+        spentBudget: 0,
+        requestedByLeaderId: requestedByLeaderId || null,
+        requestedByLeaderName: requestedByLeaderName || null,
+        supervisingOfficial, executingDepartment, contractorName, contractorPhone,
+        privateNotes,
+        handlingPaName: user.name,
+        handlingPaId: user.id,
+      },
     })
 
-    const formattedProjects = projects.map(project => ({
-      id: project.id,
-      name: project.title,
-      status: project.status,
-      progress: project.progress || 0,
-      budget: `₹${(project.budget / 100000).toFixed(1)} L`,
-      spent: `₹${((project.budget * (project.progress || 0) / 100) / 100000).toFixed(1)} L`,
-      place: project.village,
-      village: project.village,
-      mandal: project.mandal,
-      district: project.district,
-      contractor: project.contractor || 'TBD',
-      startDate: project.startDate?.toISOString().split('T')[0] || 'TBD',
-      expectedEnd: project.expectedEndDate?.toISOString().split('T')[0] || 'TBD',
-      completedDate: project.completedDate?.toISOString().split('T')[0],
-      workOrder: project.workOrderNumber || `WO/${new Date().getFullYear()}/${project.village?.substring(0,3).toUpperCase()}/${project.id.toString().padStart(3, '0')}`,
-      assignedOfficer: project.assignedOfficer?.name || 'Unassigned',
-      fieldOfficer: `Field Officer ${project.assignedOfficer?.name?.split(' ')[0] || 'TBD'}`,
-      paOfficer: 'PA Srinivas',
-      category: project.category?.name || 'General',
-      description: project.description,
-      documents: project.documents.map(doc => doc.fileName),
-      images: [`${project.title.replace(/\s+/g, '_').toLowerCase()}_progress.jpg`],
-      daysInProgress: project.startDate ? Math.floor((new Date().getTime() - project.startDate.getTime()) / (1000 * 60 * 60 * 24)) : 0,
-      issues: project.issues ? JSON.parse(project.issues) : [],
-      createdAt: project.createdAt
-    }))
+    await prisma.workTimeline.create({
+      data: {
+        publicWorkId: newWork.id,
+        stage,
+        percentageDone: stage === 'COMPLETED' ? 100 : 0,
+        updateNote: `Work logged in system. Status: ${stage}`,
+        updatedByName: user.name,
+        updatedByRole: user.role,
+      },
+    })
 
-    return NextResponse.json(formattedProjects)
-  } catch (error) {
-    console.error('Projects API error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch projects' },
-      { status: 500 }
-    )
+    const finalWork = await prisma.publicWork.findUnique({
+      where: { id: newWork.id },
+      include: { requestedByLeader: true, milestones: true },
+    })
+
+    return NextResponse.json({ success: true, work: finalWork })
+  } catch (error: any) {
+    console.error('Projects POST error:', error)
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  const user = await getAuthUser(request)
+  if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+  if (!hasRole(user, 'MINISTER', 'PA', 'ADMIN', 'BACK_OFFICER')) {
+    return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+  }
+
+  try {
+    const body = await request.json()
+    const { id, stage, percentageDone, spentBudget, sanctionedBudget, contractorName, contractorPhone, stuckReason, privateNotes, milestoneNote } = body
+
+    if (!id) return NextResponse.json({ success: false, error: 'Work ID is required' }, { status: 400 })
+
+    const existing = await prisma.publicWork.findUnique({ where: { id } })
+    if (!existing) return NextResponse.json({ success: false, error: 'Work not found' }, { status: 404 })
+
+    const updateData: any = {}
+    if (stage) updateData.stage = stage
+    if (spentBudget !== undefined) updateData.spentBudget = parseFloat(spentBudget)
+    if (sanctionedBudget !== undefined) updateData.sanctionedBudget = parseFloat(sanctionedBudget)
+    if (contractorName !== undefined) updateData.contractorName = contractorName
+    if (contractorPhone !== undefined) updateData.contractorPhone = contractorPhone
+    if (stuckReason !== undefined) updateData.stuckReason = stuckReason
+    if (privateNotes !== undefined) updateData.privateNotes = privateNotes
+    if (stage === 'COMPLETED') updateData.actualCompletionDate = new Date()
+
+    await prisma.publicWork.update({ where: { id }, data: updateData })
+
+    if (milestoneNote || (stage && stage !== existing.stage)) {
+      await prisma.workTimeline.create({
+        data: {
+          publicWorkId: id,
+          stage: stage || existing.stage,
+          percentageDone: percentageDone !== undefined ? parseInt(percentageDone) : (stage === 'COMPLETED' ? 100 : 50),
+          updateNote: milestoneNote || `Stage updated to ${stage}`,
+          updatedByName: user.name,
+          updatedByRole: user.role,
+        },
+      })
+    }
+
+    const finalWork = await prisma.publicWork.findUnique({
+      where: { id },
+      include: { requestedByLeader: true, milestones: { orderBy: { createdAt: 'desc' } }, attachments: true },
+    })
+
+    return NextResponse.json({ success: true, work: finalWork })
+  } catch (error: any) {
+    console.error('Projects PATCH error:', error)
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 }

@@ -1,73 +1,60 @@
-import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { getAuthUser, hasRole } from '@/lib/auth-middleware'
 
-const prisma = new PrismaClient()
+export async function GET(req: NextRequest) {
+  const user = await getAuthUser(req)
+  if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+  if (!hasRole(user, 'ADMIN', 'MINISTER')) {
+    return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+  }
 
-export async function GET() {
   try {
     const [
       totalUsers,
+      activeUsers,
+      usersByRole,
       totalGrievances,
+      pendingGrievances,
+      resolvedGrievances,
       totalProjects,
-      whatsappMessages,
-      recentActivity
+      ongoingProjects,
+      completedProjects,
+      whatsappTotal,
+      whatsappProcessed,
+      recentActivity,
     ] = await Promise.all([
       prisma.user.count(),
+      prisma.user.count({ where: { status: 'active' } }),
+      prisma.user.groupBy({ by: ['role'], _count: { id: true } }),
       prisma.grievance.count(),
-      prisma.governmentProject.count(),
+      prisma.grievance.count({ where: { status: { in: ['PENDING', 'ASSIGNED'] } } }),
+      prisma.grievance.count({ where: { status: { in: ['RESOLVED', 'CLOSED'] } } }),
+      prisma.publicWork.count(),
+      prisma.publicWork.count({ where: { stage: 'IN_PROGRESS' } }),
+      prisma.publicWork.count({ where: { stage: 'COMPLETED' } }),
       prisma.whatsAppMessage.count(),
+      prisma.whatsAppMessage.count({ where: { isProcessed: true } }),
       prisma.auditLog.findMany({
         take: 10,
         orderBy: { createdAt: 'desc' },
-        include: {
-          user: {
-            select: { name: true, email: true }
-          }
-        }
-      })
+        include: { user: { select: { name: true, email: true } } },
+      }),
     ])
 
-    // Calculate system health metrics
-    const systemHealth = {
-      uptime: '99.9%',
-      responseTime: '120ms',
-      activeConnections: Math.floor(Math.random() * 20) + 5,
-      databaseSize: '2.4GB'
-    }
+    const roleMap: Record<string, number> = {}
+    usersByRole.forEach((r) => { roleMap[r.role] = r._count.id })
 
     return NextResponse.json({
-      users: {
-        total: totalUsers,
-        active: Math.floor(totalUsers * 0.8),
-        roles: {
-          MINISTER: 1,
-          PA: 2,
-          BACK_OFFICER: 2,
-          FIELD_OFFICER: 3,
-          ADMIN: 1
-        }
-      },
-      grievances: {
-        total: totalGrievances,
-        pending: Math.floor(totalGrievances * 0.3),
-        resolved: Math.floor(totalGrievances * 0.6)
-      },
-      projects: {
-        total: totalProjects,
-        ongoing: Math.floor(totalProjects * 0.4),
-        completed: Math.floor(totalProjects * 0.6)
-      },
-      whatsapp: {
-        total: whatsappMessages,
-        processed: Math.floor(whatsappMessages * 0.8),
-        pending: Math.floor(whatsappMessages * 0.2)
-      },
-      systemHealth,
-      recentActivity
+      success: true,
+      users: { total: totalUsers, active: activeUsers, roles: roleMap },
+      grievances: { total: totalGrievances, pending: pendingGrievances, resolved: resolvedGrievances },
+      projects: { total: totalProjects, ongoing: ongoingProjects, completed: completedProjects },
+      whatsapp: { total: whatsappTotal, processed: whatsappProcessed, pending: whatsappTotal - whatsappProcessed },
+      recentActivity,
     })
-
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin stats error:', error)
-    return NextResponse.json({ error: 'Failed to fetch admin stats' }, { status: 500 })
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 }

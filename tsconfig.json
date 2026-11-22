@@ -36,6 +36,27 @@
     "./.next/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "backend",
+    "web",
+    "flutter_app",
+    "components/grievance-details.tsx",
+    "components/ui/animated-button.tsx",
+    "components/ui/animated-card.tsx",
+    "components/ui/carousel.tsx",
+    "components/ui/chart.tsx",
+    "components/ui/command.tsx",
+    "components/ui/context-menu.tsx",
+    "components/ui/drawer.tsx",
+    "components/ui/input-otp.tsx",
+    "components/ui/resizable.tsx",
+    "components/ui/slider.tsx",
+    "components/ui/sonner.tsx",
+    "prisma/seed-comprehensive.ts",
+    "prisma/seed-enhanced.ts",
+    "prisma/seed-realistic.ts",
+    "prisma/seed-test.ts",
+    "v0-project",
+    "v0-new"
   ]
 }

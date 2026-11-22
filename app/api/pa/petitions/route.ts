@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getAuthUser, hasRole } from '@/lib/auth-middleware'
+import { runOverdueEscalation } from '@/lib/overdue-escalation'
 
 export async function GET(req: NextRequest) {
   try {
+    const user = await getAuthUser(req)
+    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    if (!hasRole(user, 'MINISTER', 'PA', 'ADMIN')) {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+    }
+
+    // Lazy overdue escalation — runs silently, never blocks the response
+    runOverdueEscalation().catch(() => {})
     const { searchParams } = new URL(req.url)
     const type = searchParams.get('type')
     const status = searchParams.get('status')
@@ -86,6 +96,12 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const user = await getAuthUser(req)
+    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    if (!hasRole(user, 'MINISTER', 'PA', 'ADMIN')) {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+    }
+
     const body = await req.json()
     const {
       type = 'PERSONAL_GRIEVANCE',
@@ -103,7 +119,7 @@ export async function POST(req: NextRequest) {
       referredByLeaderName,
       leaderEndorsementNote,
       handlingPaId,
-      handlingPaName = 'PA Srinivas',
+      handlingPaName = user.name,
       assignedDepartment,
       assignedOfficialName,
       privateNotes,
@@ -138,6 +154,7 @@ export async function POST(req: NextRequest) {
         ? 'SCH'
         : 'REQ'
     const trackingNumber = `REQ-${prefix}-2026-${String(count + 101).padStart(4, '0')}`
+    const qrCode = `QR-REQ-${prefix}-2026-${String(count + 101).padStart(4, '0')}`
 
     // Calculate due date
     const dueDate = new Date(Date.now() + daysAllowed * 24 * 60 * 60 * 1000)
@@ -175,6 +192,7 @@ export async function POST(req: NextRequest) {
         skillsOrResumeNotes,
         daysAllowed: parseInt(daysAllowed) || 7,
         dueDate,
+        qrCode,
       },
     })
 
@@ -186,7 +204,7 @@ export async function POST(req: NextRequest) {
         toStatus: 'SUBMITTED_TO_PA',
         actionTaken: 'Petition logged in PA Office Command Center',
         remarks: leaderEndorsementNote ? `Referred by: ${referredByLeaderName}` : 'Direct intake at Praja Darbar',
-        performedByName: handlingPaName || 'PA Staff',
+        performedByName: handlingPaName || user.name,
         performedByRole: 'PA',
         isPrivateNote: false,
       },

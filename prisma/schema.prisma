@@ -15,6 +15,7 @@ model User {
   role                 Role                    @default(PUBLIC)
   phone                String?                 @db.VarChar(32)
   status               String?                 @default("active")
+  language             String?                 @default("en")
   createdAt            DateTime                @default(now())
   updatedAt            DateTime                @updatedAt
   auditLogs            AuditLog[]
@@ -517,11 +518,12 @@ model PetitionRequest {
   skillsOrResumeNotes    String?           // For Job Requests
 
   // Timers & Follow-up tracking
-  daysAllowed            Int?              @default(7) // Days before overdue flag
+  daysAllowed            Int?              @default(7)
   isOverdue              Boolean           @default(false)
   dueDate                DateTime?
   lastFollowUpAt         DateTime?         @default(now())
   resolvedAt             DateTime?
+  qrCode                 String?
 
   createdAt              DateTime          @default(now())
   updatedAt              DateTime          @updatedAt

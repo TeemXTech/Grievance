@@ -1,76 +1,95 @@
-import { PrismaClient } from '@prisma/client'
-import { NextRequest, NextResponse } from 'next/server'
-import jwt from 'jsonwebtoken'
-import { headers } from 'next/headers'
+import { getServerSession } from "next-auth"
+import { NextRequest, NextResponse } from "next/server"
+import { authOptions } from "@/lib/auth-options"
 
-const prisma = new PrismaClient()
-
-// Function to extract token from request
-function getTokenFromRequest(request: NextRequest) {
-  // Try Authorization header first
-  const authHeader = request.headers.get('authorization')
-  if (authHeader?.startsWith('Bearer ')) {
-    return authHeader.substring(7)
-  }
-
-  // Then try cookie
-  const token = request.cookies.get('token')?.value
-  if (token) {
-    return token
-  }
-
-  return null
+export interface AuthenticatedUser {
+  id: string
+  name: string
+  email: string
+  role: string
+  phone?: string
 }
 
-// BYPASS: Middleware bypassed - all requests allowed
-export async function withAuth(
-  request: NextRequest,
-  handler: (request: NextRequest) => Promise<NextResponse>
+/**
+ * Extracts the authenticated user from the NextAuth session.
+ * Returns null if not authenticated.
+ */
+export async function getAuthUser(req?: NextRequest): Promise<AuthenticatedUser | null> {
+  const session = await getServerSession(authOptions)
+  if (!session?.user) return null
+
+  const user = session.user as any
+  if (!user.id || !user.role) return null
+
+  return {
+    id: user.id,
+    name: user.name ?? "",
+    email: user.email ?? "",
+    role: user.role,
+    phone: user.phone ?? "",
+  }
+}
+
+/**
+ * Wraps an API handler with authentication.
+ * Injects the authenticated user into the handler.
+ * Returns 401 if not authenticated.
+ */
+export function withAuth(
+  handler: (req: NextRequest, user: AuthenticatedUser) => Promise<NextResponse>
 ) {
-  console.log('🔓 BYPASS: Auth middleware bypassed')
-  
-  // BYPASS: Always inject admin user headers
-  const requestHeaders = new Headers(request.headers)
-  requestHeaders.set('x-user-id', '1')
-  requestHeaders.set('x-user-role', 'ADMIN')
-  requestHeaders.set('x-user-email', 'admin@bypass.com')
-
-  // Create new request with admin headers
-  const newRequest = new NextRequest(request.url, {
-    method: request.method,
-    headers: requestHeaders,
-    body: request.body,
-  })
-
-  // Always call handler with admin privileges
-  return handler(newRequest)
-}
-
-// BYPASS: Role restrictions bypassed - all roles allowed
-export function withRole(roles: string[]) {
-  return async function(
-    request: NextRequest,
-    handler: (request: NextRequest) => Promise<NextResponse>
-  ) {
-    console.log('🔓 BYPASS: Role check bypassed')
-    // BYPASS: Always allow access regardless of role
-    return handler(request)
+  return async (req: NextRequest): Promise<NextResponse> => {
+    const user = await getAuthUser(req)
+    if (!user) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
+    }
+    return handler(req, user)
   }
 }
 
-// Combined middleware for auth and role checks
-export function withProtected(roles?: string[]) {
-  return async function(
-    request: NextRequest,
-    handler: (request: NextRequest) => Promise<NextResponse>
+/**
+ * Wraps an API handler with authentication + role enforcement.
+ * Returns 403 if the user's role is not in the allowed list.
+ */
+export function withRole(allowedRoles: string[]) {
+  return function (
+    handler: (req: NextRequest, user: AuthenticatedUser) => Promise<NextResponse>
   ) {
-    const authResponse = await withAuth(request, async (req) => {
-      if (roles) {
-        return withRole(roles)(req, handler)
+    return async (req: NextRequest): Promise<NextResponse> => {
+      const user = await getAuthUser(req)
+      if (!user) {
+        return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
       }
-      return handler(req)
-    })
-
-    return authResponse
+      if (!allowedRoles.includes(user.role)) {
+        return NextResponse.json(
+          { success: false, error: `Forbidden: requires one of [${allowedRoles.join(", ")}]` },
+          { status: 403 }
+        )
+      }
+      return handler(req, user)
+    }
   }
+}
+
+/**
+ * Convenience: checks if a user has a specific role.
+ */
+export function hasRole(user: AuthenticatedUser, ...roles: string[]): boolean {
+  return roles.includes(user.role)
+}
+
+/**
+ * Strips private/confidential fields from petition data
+ * for roles that must not see them (FIELD_OFFICER, PUBLIC, etc.)
+ */
+export function stripPrivateFields<T extends Record<string, any>>(
+  data: T,
+  user: AuthenticatedUser
+): T {
+  const sensitiveRoles = ["MINISTER", "PA", "ADMIN"]
+  if (sensitiveRoles.includes(user.role)) return data
+
+  const stripped = { ...data }
+  delete stripped.privateNotes
+  return stripped as T
 }
