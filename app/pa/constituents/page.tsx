@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import {
   Bell, Calendar, ChevronDown, FileText, Mail, MessageCircle,
   Plus, RefreshCw, Settings, Users, X, Megaphone, UserCheck,
-  MapPin, Phone, BarChart3,
+  MapPin, Phone, BarChart3, Upload, CheckCircle2, AlertTriangle,
 } from "lucide-react"
 import { GovSidebar, type NavItem } from "@/components/GovSidebar"
 
@@ -205,6 +205,94 @@ function NewCitizenDrawer({ onClose, onCreated }: { onClose: () => void; onCreat
   )
 }
 
+// ─── Bulk Import Drawer ──────────────────────────────────────────────────────
+function BulkImportDrawer({ onClose, onImported }: { onClose: () => void; onImported: () => void }) {
+  const [jsonText, setJsonText] = useState("")
+  const [dataSource, setDataSource] = useState("ECI_ROLL")
+  const [saving, setSaving] = useState(false)
+  const [result, setResult] = useState<{ total: number; created: number; skipped: number; errorCount: number } | null>(null)
+  const [err, setErr] = useState("")
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault(); setSaving(true); setErr(""); setResult(null)
+    try {
+      let citizens: any[]
+      try { citizens = JSON.parse(jsonText) } catch { setErr("Invalid JSON — paste a valid JSON array"); setSaving(false); return }
+      if (!Array.isArray(citizens)) { setErr("JSON must be an array of citizen objects"); setSaving(false); return }
+      const res = await fetch("/api/constituents/bulk-import", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ citizens, dataSource }),
+      })
+      const d = await res.json()
+      if (!d.success) { setErr(d.error || "Import failed"); return }
+      setResult(d.summary)
+    } catch { setErr("Network error") } finally { setSaving(false) }
+  }
+
+  return (
+    <>
+      <button className="gov-overlay" onClick={onClose} />
+      <aside className="gov-drawer">
+        <header className="gov-drawer-header">
+          <div><div className="gov-drawer-title">Bulk Import Citizens</div><div className="gov-drawer-sub">Paste ECI roll JSON — max 5000 records per batch</div></div>
+          <button className="gov-drawer-close" onClick={onClose}><X size={15} /></button>
+        </header>
+        <div className="gov-drawer-body">
+          {result ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ padding: "16px", borderRadius: 10, background: "#f0fdf4", border: "1px solid #bbf7d0" }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#166534", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                  <CheckCircle2 size={16} />Import Complete
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  {[{l:"Total",v:result.total},{l:"Created",v:result.created},{l:"Skipped (duplicates)",v:result.skipped},{l:"Errors",v:result.errorCount}].map(({l,v}) => (
+                    <div key={l} style={{ background: "white", borderRadius: 8, padding: "10px 12px", border: "1px solid #bbf7d0" }}>
+                      <div style={{ fontSize: 11, color: "var(--sub)" }}>{l}</div>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: "var(--navy)" }}>{v}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="gov-btn gov-btn-outline" onClick={() => { setResult(null); setJsonText("") }}>Import More</button>
+                <button className="gov-btn gov-btn-primary" onClick={onImported}>Done</button>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 13 }}>
+              <div>
+                <label className="gov-label">Data Source</label>
+                <select className="gov-select" value={dataSource} onChange={e => setDataSource(e.target.value)}>
+                  <option value="ECI_ROLL">ECI Electoral Roll</option>
+                  <option value="CAMP_OFFICE">Camp Office Entry</option>
+                  <option value="SURVEY">Survey Collection</option>
+                  <option value="MANUAL">Manual Entry</option>
+                </select>
+              </div>
+              <div>
+                <label className="gov-label">JSON Data *</label>
+                <textarea className="gov-textarea" rows={10} required value={jsonText} onChange={e => setJsonText(e.target.value)}
+                  placeholder={'[\n  {\n    "name": "Ravi Kumar",\n    "epicNumber": "TG/01/001/000001",\n    "fatherOrHusband": "Suresh Kumar",\n    "age": 35,\n    "gender": "MALE",\n    "villageName": "Manthani",\n    "mandalName": "Manthani",\n    "boothNumber": "42"\n  }\n]'}
+                />
+              </div>
+              <div style={{ padding: "10px 14px", borderRadius: 8, background: "#fffbeb", border: "1px solid #fde68a", fontSize: 12, color: "#92400e" }}>
+                <AlertTriangle size={13} style={{ display: "inline", marginRight: 4 }} />
+                Duplicates (same EPIC number) are automatically skipped. Max 5000 records per batch.
+              </div>
+              {err && <div style={{ color: "var(--crit)", fontSize: 13 }}>{err}</div>}
+              <div style={{ display: "flex", gap: 8 }}>
+                <button type="button" className="gov-btn gov-btn-outline" onClick={onClose}>Cancel</button>
+                <button type="submit" className="gov-btn gov-btn-primary" disabled={saving}><Upload size={14} />{saving ? "Importing…" : "Import"}</button>
+              </div>
+            </form>
+          )}
+        </div>
+      </aside>
+    </>
+  )
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function ConstituentsPage() {
   const { data: session } = useSession()
@@ -227,7 +315,8 @@ export default function ConstituentsPage() {
   const [filterMandal, setFilterMandal]   = useState("")
   const [filterGender, setFilterGender]   = useState("")
   const [selected, setSelected]   = useState<Citizen | null>(null)
-  const [showNew, setShowNew]     = useState(false)
+  const [showNew, setShowNew]       = useState(false)
+  const [showImport, setShowImport] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -272,9 +361,14 @@ export default function ConstituentsPage() {
             <button className="gov-header-btn" onClick={load}><RefreshCw size={15} /></button>
             <button className="gov-header-btn"><Bell size={15} /></button>
             {canWrite && (
-              <button className="gov-btn gov-btn-primary" onClick={() => setShowNew(true)}>
-                <Plus size={14} />Add Constituent
-              </button>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="gov-btn gov-btn-outline" onClick={() => setShowImport(true)}>
+                  <Upload size={14} />Bulk Import
+                </button>
+                <button className="gov-btn gov-btn-primary" onClick={() => setShowNew(true)}>
+                  <Plus size={14} />Add Constituent
+                </button>
+              </div>
             )}
             <div className="gov-header-profile">
               <div className="gov-avatar">{userName.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()}</div>
@@ -379,6 +473,7 @@ export default function ConstituentsPage() {
       </main>
 
       {showNew && <NewCitizenDrawer onClose={() => setShowNew(false)} onCreated={() => { setShowNew(false); load() }} />}
+      {showImport && <BulkImportDrawer onClose={() => setShowImport(false)} onImported={() => { setShowImport(false); load() }} />}
       {selected && <CitizenDrawer citizen={selected} canSeePrivate={canSeePrivate} onClose={() => setSelected(null)} />}
     </div>
   )

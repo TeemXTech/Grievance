@@ -1,16 +1,16 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import {
   Bell, Calendar, ChevronDown, FileText, Mail, MessageCircle,
   RefreshCw, Settings, Users, X, Megaphone, FolderOpen,
   ExternalLink, Trash2, Image as ImageIcon, File, FileArchive,
+  Upload, CheckCircle2,
 } from "lucide-react"
 import { GovSidebar, type NavItem } from "@/components/GovSidebar"
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 interface Document {
   id: string; fileName: string; originalName: string
   fileUrl: string; fileType: string; mimeType: string | null
@@ -19,8 +19,8 @@ interface Document {
   publicWork: { id: string; workCode: string; title: string } | null
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
 const READ_ROLES   = ["MINISTER", "PA", "ADMIN", "BACK_OFFICER"]
+const UPLOAD_ROLES = ["PA", "ADMIN", "BACK_OFFICER", "FIELD_OFFICER"]
 const DELETE_ROLES = ["PA", "ADMIN"]
 
 const NAV: NavItem[] = [
@@ -44,7 +44,7 @@ function fmtSize(bytes: number | null) {
   return `${bytes} B`
 }
 
-function FileIcon({ fileType, mimeType }: { fileType: string; mimeType: string | null }) {
+function FileIcon({ mimeType, fileType }: { mimeType: string | null; fileType: string }) {
   const t = (mimeType || fileType || "").toLowerCase()
   if (t.includes("image")) return <ImageIcon size={15} color="#7c3aed" />
   if (t.includes("pdf"))   return <FileText size={15} color="#991b1b" />
@@ -56,7 +56,113 @@ function Badge({ label, color, bg }: { label: string; color: string; bg: string 
   return <span className="gov-badge" style={{ color, background: bg }}>{label}</span>
 }
 
-// ─── Document Drawer ──────────────────────────────────────────────────────────
+// ─── Upload Drawer ────────────────────────────────────────────────────────────
+function UploadDrawer({ onClose, onUploaded }: { onClose: () => void; onUploaded: () => void }) {
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [file, setFile]         = useState<File | null>(null)
+  const [fileType, setFileType] = useState("DOCUMENT")
+  const [uploading, setUploading] = useState(false)
+  const [progress, setProgress]   = useState("")
+  const [err, setErr]             = useState("")
+
+  const upload = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!file) { setErr("Please select a file"); return }
+    setUploading(true); setErr(""); setProgress("Uploading file…")
+
+    try {
+      // Step 1: upload file to storage
+      const fd = new FormData()
+      fd.append("file", file)
+      const upRes = await fetch("/api/upload", { method: "POST", credentials: "include", body: fd })
+      const upData = await upRes.json()
+      if (!upData.success) { setErr(upData.error || "Upload failed"); return }
+
+      setProgress("Registering document…")
+
+      // Step 2: register in documents DB
+      const docRes = await fetch("/api/documents", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileName:     upData.fileName,
+          originalName: upData.originalName,
+          fileUrl:      upData.fileUrl,
+          fileType:     fileType,
+          mimeType:     upData.mimeType,
+          fileSize:     upData.fileSize,
+        }),
+      })
+      const docData = await docRes.json()
+      if (!docData.success) { setErr(docData.error || "Registration failed"); return }
+
+      setProgress("Done!")
+      setTimeout(() => { onUploaded() }, 800)
+    } catch { setErr("Network error — please try again") } finally { setUploading(false) }
+  }
+
+  return (
+    <>
+      <button className="gov-overlay" onClick={onClose} />
+      <aside className="gov-drawer">
+        <header className="gov-drawer-header">
+          <div><div className="gov-drawer-title">Upload Document</div><div className="gov-drawer-sub">Max 10 MB · PDF, Word, Excel, Images</div></div>
+          <button className="gov-drawer-close" onClick={onClose}><X size={15} /></button>
+        </header>
+        <div className="gov-drawer-body">
+          <form onSubmit={upload} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div>
+              <label className="gov-label">File *</label>
+              <div
+                style={{ border: "2px dashed var(--border)", borderRadius: 10, padding: "24px 16px", textAlign: "center", cursor: "pointer", background: file ? "#f0fdf4" : "var(--bg)" }}
+                onClick={() => fileRef.current?.click()}
+              >
+                {file ? (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                    <CheckCircle2 size={18} color="#16A34A" />
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#166534" }}>{file.name}</span>
+                    <span style={{ fontSize: 12, color: "var(--sub)" }}>({fmtSize(file.size)})</span>
+                  </div>
+                ) : (
+                  <div>
+                    <Upload size={24} color="var(--sub)" style={{ margin: "0 auto 8px" }} />
+                    <div style={{ fontSize: 13, color: "var(--sub)" }}>Click to select file</div>
+                    <div style={{ fontSize: 11, color: "var(--sub)", marginTop: 4 }}>PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, WEBP</div>
+                  </div>
+                )}
+              </div>
+              <input ref={fileRef} type="file" style={{ display: "none" }}
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp,.gif"
+                onChange={e => { const f = e.target.files?.[0]; if (f) setFile(f) }}
+              />
+            </div>
+
+            <div>
+              <label className="gov-label">Document Type</label>
+              <select className="gov-select" value={fileType} onChange={e => setFileType(e.target.value)}>
+                {["DOCUMENT","HANDWRITTEN_PETITION","SANCTION_ORDER","WORK_PROGRESS_PHOTO","MEDICAL_BILL","IDENTITY_PROOF","LAND_DOCUMENT","LETTER","OTHER"].map(t => (
+                  <option key={t} value={t}>{t.replace(/_/g, " ")}</option>
+                ))}
+              </select>
+            </div>
+
+            {progress && !err && <div style={{ fontSize: 13, color: "var(--success)", fontWeight: 600 }}>{progress}</div>}
+            {err && <div style={{ fontSize: 13, color: "var(--crit)" }}>{err}</div>}
+
+            <div style={{ display: "flex", gap: 8 }}>
+              <button type="button" className="gov-btn gov-btn-outline" onClick={onClose}>Cancel</button>
+              <button type="submit" className="gov-btn gov-btn-primary" disabled={uploading || !file}>
+                <Upload size={14} />{uploading ? "Uploading…" : "Upload"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </aside>
+    </>
+  )
+}
+
+// ─── Document Detail Drawer ───────────────────────────────────────────────────
 function DocumentDrawer({
   doc, canDelete, onClose, onDeleted,
 }: {
@@ -67,9 +173,10 @@ function DocumentDrawer({
   const doDelete = async () => {
     if (!confirm(`Delete "${doc.originalName}"? This cannot be undone.`)) return
     setDeleting(true)
-    await fetch(`/api/documents/${doc.id}`, { method: "DELETE", credentials: "include" })
+    const res = await fetch(`/api/documents/${doc.id}`, { method: "DELETE", credentials: "include" })
+    const d = await res.json()
     setDeleting(false)
-    onDeleted()
+    if (d.success) onDeleted()
   }
 
   return (
@@ -85,7 +192,7 @@ function DocumentDrawer({
         </header>
         <div className="gov-drawer-body">
           <div className="gov-info-grid">
-            <div className="gov-info-box"><div className="gov-label">Type</div><div style={{ fontSize: 13, fontWeight: 600 }}>{doc.fileType}</div></div>
+            <div className="gov-info-box"><div className="gov-label">Type</div><div style={{ fontSize: 13, fontWeight: 600 }}>{doc.fileType.replace(/_/g, " ")}</div></div>
             <div className="gov-info-box"><div className="gov-label">Size</div><div style={{ fontSize: 13, fontWeight: 600 }}>{fmtSize(doc.fileSize)}</div></div>
           </div>
 
@@ -96,7 +203,6 @@ function DocumentDrawer({
               <div className="gov-label" style={{ color: "#1e40af" }}>Linked Petition</div>
               <div style={{ fontSize: 13, fontWeight: 600 }}>{doc.petitionRequest.title}</div>
               <div style={{ fontSize: 11, color: "#1e40af", fontFamily: "monospace" }}>{doc.petitionRequest.trackingNumber}</div>
-              <div style={{ fontSize: 12, color: "var(--sub)" }}>{doc.petitionRequest.applicantName}</div>
             </div>
           )}
 
@@ -108,7 +214,9 @@ function DocumentDrawer({
             </div>
           )}
 
-          <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="gov-btn gov-btn-primary" style={{ display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none" }}>
+          <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer"
+            className="gov-btn gov-btn-primary"
+            style={{ display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none" }}>
             <ExternalLink size={14} />Open File
           </a>
 
@@ -132,6 +240,7 @@ export default function DocumentsPage() {
   const userName = user?.name || "Staff"
 
   const canRead   = READ_ROLES.includes(role)
+  const canUpload = UPLOAD_ROLES.includes(role)
   const canDelete = DELETE_ROLES.includes(role)
 
   const [docs, setDocs]       = useState<Document[]>([])
@@ -140,9 +249,10 @@ export default function DocumentsPage() {
   const [page, setPage]       = useState(1)
   const [loading, setLoading] = useState(true)
   const [search, setSearch]   = useState("")
-  const [filterType, setFilterType]   = useState("")
+  const [filterType, setFilterType]     = useState("")
   const [filterLinked, setFilterLinked] = useState("")
-  const [selected, setSelected] = useState<Document | null>(null)
+  const [selected, setSelected]   = useState<Document | null>(null)
+  const [showUpload, setShowUpload] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -168,7 +278,6 @@ export default function DocumentsPage() {
     if (key in routes) router.push(routes[key])
   }
 
-  // Stats derived from loaded docs
   const withPetition = docs.filter(d => d.petitionRequest).length
   const withWork     = docs.filter(d => d.publicWork).length
   const images       = docs.filter(d => (d.mimeType || "").includes("image")).length
@@ -187,6 +296,11 @@ export default function DocumentsPage() {
           <div className="gov-header-actions">
             <button className="gov-header-btn" onClick={load}><RefreshCw size={15} /></button>
             <button className="gov-header-btn"><Bell size={15} /></button>
+            {canUpload && (
+              <button className="gov-btn gov-btn-primary" onClick={() => setShowUpload(true)}>
+                <Upload size={14} />Upload File
+              </button>
+            )}
             <div className="gov-header-profile">
               <div className="gov-avatar">{userName.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()}</div>
               <div><div className="gov-avatar-name">{userName}</div><div className="gov-avatar-role">{role.replace(/_/g, " ")}</div></div>
@@ -196,13 +310,12 @@ export default function DocumentsPage() {
         </header>
 
         <div className="gov-body">
-          {/* KPIs */}
           <div className="gov-kpi-grid">
             {[
-              { label: "Total Documents",    value: total,       accent: "#2F6FED", Icon: FolderOpen },
-              { label: "Linked to Petitions",value: withPetition,accent: "#7c3aed", Icon: FileText },
-              { label: "Linked to Works",    value: withWork,    accent: "#16A34A", Icon: File },
-              { label: "Images",             value: images,      accent: "#D97706", Icon: ImageIcon },
+              { label: "Total Documents",     value: total,        accent: "#2F6FED", Icon: FolderOpen },
+              { label: "Linked to Petitions", value: withPetition, accent: "#7c3aed", Icon: FileText },
+              { label: "Linked to Works",     value: withWork,     accent: "#16A34A", Icon: File },
+              { label: "Images",              value: images,       accent: "#D97706", Icon: ImageIcon },
             ].map(({ label, value, accent, Icon: Ic }) => (
               <div key={label} className="gov-kpi">
                 <div className="gov-kpi-top"><div className="gov-kpi-icon" style={{ background: `${accent}18` }}><Ic size={17} color={accent} /></div></div>
@@ -212,7 +325,6 @@ export default function DocumentsPage() {
             ))}
           </div>
 
-          {/* Table */}
           <div className="gov-card gov-card-p">
             <div className="gov-card-header">
               <div className="gov-card-title">
@@ -235,7 +347,11 @@ export default function DocumentsPage() {
                 {[1,2,3,4,5].map(i => <div key={i} className="gov-skel" style={{ height: 48, borderRadius: 7 }} />)}
               </div>
             ) : docs.length === 0 ? (
-              <div className="gov-empty"><FolderOpen size={24} style={{ margin: "0 auto 10px", opacity: 0.3 }} /><div>No documents found.</div></div>
+              <div className="gov-empty">
+                <FolderOpen size={24} style={{ margin: "0 auto 10px", opacity: 0.3 }} />
+                <div>No documents found.</div>
+                {canUpload && <button className="gov-btn gov-btn-primary" style={{ marginTop: 12 }} onClick={() => setShowUpload(true)}><Upload size={14} />Upload First File</button>}
+              </div>
             ) : (
               <>
                 <div style={{ overflowX: "auto" }}>
@@ -250,7 +366,7 @@ export default function DocumentsPage() {
                               <span style={{ fontWeight: 600, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.originalName}</span>
                             </div>
                           </td>
-                          <td><Badge label={d.fileType} color="#475569" bg="#f1f5f9" /></td>
+                          <td><Badge label={d.fileType.replace(/_/g, " ")} color="#475569" bg="#f1f5f9" /></td>
                           <td style={{ fontSize: 12 }}>{fmtSize(d.fileSize)}</td>
                           <td style={{ fontSize: 12 }}>
                             {d.petitionRequest
@@ -264,7 +380,9 @@ export default function DocumentsPage() {
                           <td>
                             <div style={{ display: "flex", gap: 6 }}>
                               <button className="gov-btn gov-btn-outline gov-btn-sm" onClick={() => setSelected(d)}>View</button>
-                              <a href={d.fileUrl} target="_blank" rel="noopener noreferrer" className="gov-btn gov-btn-sm" style={{ background: "var(--bg)", border: "1px solid var(--border)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                              <a href={d.fileUrl} target="_blank" rel="noopener noreferrer"
+                                className="gov-btn gov-btn-sm"
+                                style={{ background: "var(--bg)", border: "1px solid var(--border)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}>
                                 <ExternalLink size={12} />
                               </a>
                             </div>
@@ -287,6 +405,7 @@ export default function DocumentsPage() {
         </div>
       </main>
 
+      {showUpload && <UploadDrawer onClose={() => setShowUpload(false)} onUploaded={() => { setShowUpload(false); load() }} />}
       {selected && <DocumentDrawer doc={selected} canDelete={canDelete} onClose={() => setSelected(null)} onDeleted={() => { setSelected(null); load() }} />}
     </div>
   )
