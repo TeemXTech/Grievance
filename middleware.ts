@@ -1,6 +1,30 @@
 import { getToken } from "next-auth/jwt"
 import { NextRequest, NextResponse } from "next/server"
-// v2 — recompiled after secret rotation
+// v3 — added login rate limiting
+
+// ─── In-memory rate limiter (Edge Runtime compatible, no external deps) ────────
+// 10 attempts per IP per 15-minute window on the credentials login endpoint.
+const RATE_LIMIT_MAX    = 10
+const RATE_LIMIT_WINDOW = 15 * 60 * 1000 // 15 minutes in ms
+const loginAttempts     = new Map<string, { count: number; windowStart: number }>()
+
+function checkLoginRateLimit(ip: string): { allowed: boolean; retryAfterSeconds: number } {
+  const now    = Date.now()
+  const record = loginAttempts.get(ip)
+
+  if (!record || now - record.windowStart > RATE_LIMIT_WINDOW) {
+    loginAttempts.set(ip, { count: 1, windowStart: now })
+    return { allowed: true, retryAfterSeconds: 0 }
+  }
+
+  if (record.count >= RATE_LIMIT_MAX) {
+    const retryAfterSeconds = Math.ceil((RATE_LIMIT_WINDOW - (now - record.windowStart)) / 1000)
+    return { allowed: false, retryAfterSeconds }
+  }
+
+  record.count++
+  return { allowed: true, retryAfterSeconds: 0 }
+}
 
 // Role → allowed route prefixes
 const ROLE_ROUTES: Record<string, string[]> = {
@@ -46,6 +70,28 @@ const BLOCKED_PATHS = [
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
+
+  // ── Rate limit the credentials login endpoint ─────────────────────────────
+  if (pathname === "/api/auth/callback/credentials") {
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim()
+           ?? req.headers.get("x-real-ip")
+           ?? "unknown"
+    const { allowed, retryAfterSeconds } = checkLoginRateLimit(ip)
+    if (!allowed) {
+      return new NextResponse(
+        JSON.stringify({ success: false, error: "Too many login attempts. Please wait before trying again." }),
+        {
+          status: 429,
+          headers: {
+            "Content-Type":          "application/json",
+            "Retry-After":           String(retryAfterSeconds),
+            "X-RateLimit-Limit":     String(RATE_LIMIT_MAX),
+            "X-RateLimit-Remaining": "0",
+          },
+        }
+      )
+    }
+  }
 
   // Block all bypass/test/demo routes — redirect to real login
   if (BLOCKED_PATHS.some((p) => pathname.startsWith(p))) {
@@ -105,12 +151,12 @@ export async function middleware(req: NextRequest) {
 
 function getDefaultRoute(role: string): string {
   switch (role) {
-    case "MINISTER":    return "/minister/dashboard"
-    case "PA":          return "/pa/dashboard"
-    case "BACK_OFFICER":return "/back-officer/dashboard"
+    case "MINISTER":     return "/minister/dashboard"
+    case "PA":           return "/pa/dashboard"
+    case "BACK_OFFICER": return "/back-officer/dashboard"
     case "FIELD_OFFICER":return "/field-officer/dashboard"
-    case "ADMIN":       return "/admin/dashboard"
-    default:            return "/dashboard"
+    case "ADMIN":        return "/admin/dashboard"
+    default:             return "/dashboard"
   }
 }
 
