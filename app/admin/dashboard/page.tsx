@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
-import { Shield, Users, FileText, Building2, Activity, Settings, RefreshCw, Bell, ChevronDown, X, KeyRound, CheckCircle2, UserPlus, Filter } from "lucide-react"
+import { Shield, Users, FileText, Building2, Activity, Settings, RefreshCw, Bell, ChevronDown, X, KeyRound, CheckCircle2, UserPlus, Filter, Lock } from "lucide-react"
 import { GovSidebar, type NavItem } from "@/components/GovSidebar"
 
 const NAV: NavItem[] = [
   { key: "overview",  label: "Overview",        Icon: Activity },
   { key: "users",     label: "User Management", Icon: Users },
   { key: "create",    label: "Create User",     Icon: UserPlus },
+  { key: "password",  label: "Change Password", Icon: Lock },
   { key: "roles",     label: "Roles & Access",  Icon: Shield },
   { key: "logs",      label: "Audit Logs",      Icon: FileText },
   { key: "settings",  label: "Settings",        Icon: Settings },
@@ -52,6 +53,27 @@ export default function AdminDashboard() {
   const [allLogs, setAllLogs]       = useState<any[]>([])
   const [logTotal, setLogTotal]     = useState(0)
   const [logLoading, setLogLoading] = useState(false)
+
+  // Self-password change
+  const [pwForm, setPwForm]     = useState({ current: "", next: "", confirm: "" })
+  const [pwSaving, setPwSaving] = useState(false)
+  const [pwMsg, setPwMsg]       = useState("")
+
+  const handlePwChange = async () => {
+    if (pwForm.next !== pwForm.confirm) { setPwMsg("Passwords do not match"); return }
+    if (pwForm.next.length < 8) { setPwMsg("New password must be at least 8 characters"); return }
+    setPwSaving(true); setPwMsg("")
+    try {
+      const res = await fetch("/api/users/me", {
+        method: "PATCH", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword: pwForm.current, newPassword: pwForm.next }),
+      })
+      const d = await res.json()
+      if (d.success) { setPwMsg("Password changed successfully"); setPwForm({ current: "", next: "", confirm: "" }) }
+      else setPwMsg(d.error || "Failed")
+    } catch { setPwMsg("Network error") } finally { setPwSaving(false) }
+  }
 
   const loadData = async () => {
     setLoading(true)
@@ -266,6 +288,22 @@ export default function AdminDashboard() {
                     <Badge label={value} color="#065f46" bg="#d1fae5" />
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Change Password */}
+          {activeNav === "password" && (
+            <div className="gov-card gov-card-p" style={{ maxWidth: 480 }}>
+              <div className="gov-card-header"><div className="gov-card-title"><div className="gov-card-icon" style={{ background: "#f5f3ff" }}><Lock size={14} color="#7c3aed" /></div>Change Your Password</div></div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
+                <div><label className="gov-label">Current Password *</label><input className="gov-input" type="password" value={pwForm.current} onChange={e => setPwForm(f => ({ ...f, current: e.target.value }))} /></div>
+                <div><label className="gov-label">New Password * (min 8 chars)</label><input className="gov-input" type="password" value={pwForm.next} onChange={e => setPwForm(f => ({ ...f, next: e.target.value }))} /></div>
+                <div><label className="gov-label">Confirm New Password *</label><input className="gov-input" type="password" value={pwForm.confirm} onChange={e => setPwForm(f => ({ ...f, confirm: e.target.value }))} /></div>
+                {pwMsg && <div style={{ fontSize: 13, fontWeight: 600, color: pwMsg.includes("success") ? "var(--success)" : "var(--crit)" }}>{pwMsg}</div>}
+                <button className="gov-btn gov-btn-primary" style={{ width: "fit-content" }} disabled={pwSaving || !pwForm.current || !pwForm.next || !pwForm.confirm} onClick={handlePwChange}>
+                  <Lock size={14} />{pwSaving ? "Changing…" : "Change Password"}
+                </button>
               </div>
             </div>
           )}

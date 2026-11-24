@@ -16,6 +16,8 @@ export type AuditAction =
   | "DISPATCH"
   | "GRADE_COMPUTE"
   | "CRON_MANUAL_TRIGGER"
+  | "PASSWORD_CHANGE"
+  | "PASSWORD_RESET"
 
 export type AuditEntityType =
   | "GRIEVANCE"

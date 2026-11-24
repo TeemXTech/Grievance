@@ -43,7 +43,10 @@ const READ_ROLES    = ["MINISTER", "PA", "ADMIN", "BACK_OFFICER"]
 const WRITE_ROLES   = ["PA", "ADMIN"]
 const PRIVATE_ROLES = ["MINISTER", "PA", "ADMIN"]
 
-const FUND_STATUSES = ["RECOMMENDED","LETTER_SENT","ADMIN_SANCTION","TECH_SANCTION","TENDER_FLOATED","WORK_IN_PROGRESS","FIRST_INSTALLMENT","FINAL_INSTALLMENT","COMPLETED","CANCELLED"]
+// Exact values from FundAllocationStatus enum in schema.prisma
+const FUND_STATUSES = ["RECOMMENDED","LETTER_SENT","ADMIN_SANCTION","TECH_SANCTION","TENDER_FLOATED","WORK_IN_PROGRESS","COMPLETED","CANCELLED"]
+// Exact values from FundScheme enum in schema.prisma
+const FUND_SCHEMES  = ["MLACDS","MPLADS","STATE","OTHER"]
 
 const NAV: NavItem[] = [
   { key: "petitions", label: "All Petitions",  Icon: FileText },
@@ -62,8 +65,6 @@ const STATUS_COLORS: Record<string, { color: string; bg: string }> = {
   TECH_SANCTION:     { color: "#0369a1", bg: "#e0f2fe" },
   TENDER_FLOATED:    { color: "#92400e", bg: "#fef3c7" },
   WORK_IN_PROGRESS:  { color: "#d97706", bg: "#fef9c3" },
-  FIRST_INSTALLMENT: { color: "#065f46", bg: "#d1fae5" },
-  FINAL_INSTALLMENT: { color: "#166534", bg: "#bbf7d0" },
   COMPLETED:         { color: "#14532d", bg: "#86efac" },
   CANCELLED:         { color: "#991b1b", bg: "#fee2e2" },
 }
@@ -234,7 +235,7 @@ function NewFundDrawer({ onClose, onCreated }: { onClose: () => void; onCreated:
               <div>
                 <label className="gov-label">Scheme</label>
                 <select className="gov-select" value={form.scheme} onChange={e => set("scheme", e.target.value)}>
-                  {["MLACDS","MPLADS","NABARD","PMGSY","NREGS","STATE_BUDGET","OTHER"].map(s => <option key={s} value={s}>{s}</option>)}
+                  {FUND_SCHEMES.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               <div><label className="gov-label">Financial Year *</label><input className="gov-input" required value={form.financialYear} onChange={e => set("financialYear", e.target.value)} placeholder="2024-25" /></div>
@@ -376,7 +377,7 @@ export default function FundsPage() {
                 <input className="gov-input" style={{ width: 180 }} placeholder="Search work, ref, mandal…" value={search} onChange={e => setSearch(e.target.value)} />
                 <select className="gov-select" style={{ width: 130 }} value={filterScheme} onChange={e => setFilterScheme(e.target.value)}>
                   <option value="">All Schemes</option>
-                  {["MLACDS","MPLADS","NABARD","PMGSY","NREGS","STATE_BUDGET","OTHER"].map(s => <option key={s} value={s}>{s}</option>)}
+                  {FUND_SCHEMES.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
                 <select className="gov-select" style={{ width: 160 }} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
                   <option value="">All Status</option>
