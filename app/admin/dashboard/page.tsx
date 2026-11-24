@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
-import { Shield, Users, FileText, Building2, Activity, Settings, RefreshCw, Bell, ChevronDown, X, KeyRound, CheckCircle2 } from "lucide-react"
+import { Shield, Users, FileText, Building2, Activity, Settings, RefreshCw, Bell, ChevronDown, X, KeyRound, CheckCircle2, UserPlus, Filter } from "lucide-react"
 import { GovSidebar, type NavItem } from "@/components/GovSidebar"
 
 const NAV: NavItem[] = [
   { key: "overview",  label: "Overview",        Icon: Activity },
   { key: "users",     label: "User Management", Icon: Users },
+  { key: "create",    label: "Create User",     Icon: UserPlus },
   { key: "roles",     label: "Roles & Access",  Icon: Shield },
   { key: "logs",      label: "Audit Logs",      Icon: FileText },
   { key: "settings",  label: "Settings",        Icon: Settings },
@@ -41,6 +42,17 @@ export default function AdminDashboard() {
   const [resetMsg, setResetMsg]       = useState("")
   const [resetting, setResetting]     = useState(false)
 
+  // Create user form
+  const [createForm, setCreateForm] = useState({ name: "", email: "", password: "", role: "BACK_OFFICER", phone: "" })
+  const [creating, setCreating]     = useState(false)
+  const [createMsg, setCreateMsg]   = useState("")
+
+  // Audit log filters
+  const [logFilters, setLogFilters] = useState({ entityType: "", action: "", from: "", to: "" })
+  const [allLogs, setAllLogs]       = useState<any[]>([])
+  const [logTotal, setLogTotal]     = useState(0)
+  const [logLoading, setLogLoading] = useState(false)
+
   const loadData = async () => {
     setLoading(true)
     try {
@@ -50,7 +62,38 @@ export default function AdminDashboard() {
     } finally { setLoading(false) }
   }
 
+  const loadAuditLogs = async () => {
+    setLogLoading(true)
+    const params = new URLSearchParams()
+    if (logFilters.entityType) params.set("entityType", logFilters.entityType)
+    if (logFilters.action)     params.set("action",     logFilters.action)
+    if (logFilters.from)       params.set("from",       logFilters.from)
+    if (logFilters.to)         params.set("to",         logFilters.to)
+    const res = await fetch(`/api/audit-logs?${params}`, { credentials: "include" })
+    const d = await res.json()
+    if (d.success) { setAllLogs(d.logs); setLogTotal(d.total) }
+    setLogLoading(false)
+  }
+
+  const handleCreate = async () => {
+    setCreating(true); setCreateMsg("")
+    try {
+      const res = await fetch("/api/users", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(createForm),
+      })
+      const d = await res.json()
+      if (d.success) {
+        setCreateMsg(`User ${d.user.name} created successfully`)
+        setCreateForm({ name: "", email: "", password: "", role: "BACK_OFFICER", phone: "" })
+        loadData()
+      } else setCreateMsg(d.error || "Failed")
+    } catch { setCreateMsg("Network error") } finally { setCreating(false) }
+  }
+
   useEffect(() => { loadData() }, [])
+  useEffect(() => { if (activeNav === "logs") loadAuditLogs() }, [activeNav])
 
   const handleReset = async () => {
     if (!resetTarget || newPassword.length < 8) { setResetMsg("Password must be at least 8 characters"); return }
@@ -227,19 +270,65 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {/* Create User */}
+          {activeNav === "create" && (
+            <div className="gov-card gov-card-p" style={{ maxWidth: 520 }}>
+              <div className="gov-card-header"><div className="gov-card-title"><div className="gov-card-icon" style={{ background: "#eff6ff" }}><UserPlus size={14} color="#2F6FED" /></div>Create New User</div></div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div><label className="gov-label">Full Name *</label><input className="gov-input" value={createForm.name} onChange={e => setCreateForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Ravi Kumar" /></div>
+                  <div><label className="gov-label">Email *</label><input className="gov-input" type="email" value={createForm.email} onChange={e => setCreateForm(f => ({ ...f, email: e.target.value }))} placeholder="ravi@gov.in" /></div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div>
+                    <label className="gov-label">Role *</label>
+                    <select className="gov-select" value={createForm.role} onChange={e => setCreateForm(f => ({ ...f, role: e.target.value }))}>
+                      {["PA","ADMIN","BACK_OFFICER","FIELD_OFFICER","OFFICER","GOVERNMENT_OFFICIAL"].map(r => <option key={r} value={r}>{r.replace(/_/g, " ")}</option>)}
+                    </select>
+                  </div>
+                  <div><label className="gov-label">Phone</label><input className="gov-input" type="tel" value={createForm.phone} onChange={e => setCreateForm(f => ({ ...f, phone: e.target.value }))} /></div>
+                </div>
+                <div><label className="gov-label">Password * (min 8 chars)</label><input className="gov-input" type="password" value={createForm.password} onChange={e => setCreateForm(f => ({ ...f, password: e.target.value }))} /></div>
+                {createMsg && <div style={{ fontSize: 13, fontWeight: 600, color: createMsg.includes("success") ? "var(--success)" : "var(--crit)" }}>{createMsg}</div>}
+                <button className="gov-btn gov-btn-primary" style={{ width: "fit-content" }} disabled={creating || !createForm.name || !createForm.email || !createForm.password} onClick={handleCreate}>
+                  <UserPlus size={14} />{creating ? "Creating…" : "Create User"}
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Audit Logs */}
           {activeNav === "logs" && (
             <div className="gov-card gov-card-p">
-              <div className="gov-card-header"><div className="gov-card-title"><div className="gov-card-icon" style={{ background: "#eff6ff" }}><FileText size={14} color="#2F6FED" /></div>Audit Log</div></div>
-              {logs.length === 0 ? <div className="gov-empty">No audit log entries yet.</div> : (
+              <div className="gov-card-header">
+                <div className="gov-card-title"><div className="gov-card-icon" style={{ background: "#eff6ff" }}><FileText size={14} color="#2F6FED" /></div>Audit Log <span style={{ fontSize: 12, color: "var(--sub)", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 5, padding: "1px 8px" }}>{logTotal}</span></div>
+                <button className="gov-btn gov-btn-outline gov-btn-sm" onClick={loadAuditLogs}><RefreshCw size={13} />Refresh</button>
+              </div>
+              {/* Filters */}
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                <select className="gov-select" style={{ width: 160 }} value={logFilters.entityType} onChange={e => setLogFilters(f => ({ ...f, entityType: e.target.value }))}>
+                  <option value="">All Entity Types</option>
+                  {["USER","CAMPAIGN","PARTY_WORKER","FUND_ALLOCATION","SURVEY","CITIZEN","ATTACHMENT","GRIEVANCE","PETITION"].map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+                <select className="gov-select" style={{ width: 130 }} value={logFilters.action} onChange={e => setLogFilters(f => ({ ...f, action: e.target.value }))}>
+                  <option value="">All Actions</option>
+                  {["CREATE","UPDATE","DELETE","STATUS_CHANGE","APPROVE","DISPATCH","GRADE_COMPUTE"].map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+                <input className="gov-input" type="date" style={{ width: 140 }} value={logFilters.from} onChange={e => setLogFilters(f => ({ ...f, from: e.target.value }))} />
+                <input className="gov-input" type="date" style={{ width: 140 }} value={logFilters.to} onChange={e => setLogFilters(f => ({ ...f, to: e.target.value }))} />
+                <button className="gov-btn gov-btn-primary gov-btn-sm" onClick={loadAuditLogs}><Filter size={13} />Apply</button>
+              </div>
+              {logLoading ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{[1,2,3,4,5].map(i => <div key={i} className="gov-skel" style={{ height: 44, borderRadius: 7 }} />)}</div>
+              ) : allLogs.length === 0 ? <div className="gov-empty">No audit log entries match the filters.</div> : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {logs.map((log: any, i: number) => (
+                  {allLogs.map((log: any, i: number) => (
                     <div key={log.id || i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", background: "var(--bg)", borderRadius: 8, border: "1px solid var(--border)" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--blue)", flexShrink: 0 }} />
                         <div>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--navy)" }}>{log.action}</div>
-                          <div style={{ fontSize: 11, color: "var(--sub)" }}>{log.user?.name || log.userId} · {log.entityType}</div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--navy)" }}>{log.action} <span style={{ fontSize: 11, color: "var(--sub)", fontWeight: 400 }}>on {log.entityType}</span></div>
+                          <div style={{ fontSize: 11, color: "var(--sub)" }}>{log.user?.name || log.userId} · {log.entityId?.slice(0, 8)}…</div>
                         </div>
                       </div>
                       <div style={{ fontSize: 11, color: "var(--sub)", flexShrink: 0 }}>{new Date(log.createdAt).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" })}</div>
