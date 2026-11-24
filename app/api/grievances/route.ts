@@ -39,18 +39,16 @@ const updateGrievanceSchema = createGrievanceSchema.partial().extend({
   assignedToId: z.string().cuid("Invalid user ID").optional(),
 })
 
-// Generate unique reference number
+// Generate unique reference number — findFirst pattern prevents race conditions
 async function generateReferenceNumber(): Promise<string> {
-  const year = new Date().getFullYear()
-  const count = await prisma.grievance.count({
-    where: {
-      referenceNumber: {
-        startsWith: `GRV-${year}-`
-      }
-    }
+  const year   = new Date().getFullYear()
+  const prefix = `GRV-${year}-`
+  const last   = await prisma.grievance.findFirst({
+    where:   { referenceNumber: { startsWith: prefix } },
+    orderBy: { referenceNumber: "desc" },
   })
-  const sequence = (count + 1).toString().padStart(4, '0')
-  return `GRV-${year}-${sequence}`
+  const seq = last ? parseInt(last.referenceNumber.split("-").pop()!, 10) + 1 : 1
+  return `${prefix}${String(seq).padStart(4, "0")}`
 }
 
 // Create audit log entry
@@ -97,8 +95,18 @@ async function createStatusUpdate(
   })
 }
 
+// Roles allowed to read grievances
+const READ_ROLES  = ["MINISTER", "PA", "ADMIN", "BACK_OFFICER", "OFFICER", "FIELD_OFFICER", "PUBLIC"]
+// Roles allowed to update grievance status / assignment
+const UPDATE_ROLES = ["MINISTER", "PA", "ADMIN", "BACK_OFFICER", "OFFICER"]
+
 export async function GET(req: NextRequest) {
   try {
+    const user = await getAuthUser(req)
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!READ_ROLES.includes(user.role))
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
     const { searchParams } = new URL(req.url)
     const status = searchParams.get("status") as keyof typeof GrievanceStatus | null
     const category = searchParams.get("category")
@@ -110,6 +118,12 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get("search")
 
     const where: any = {}
+
+    // PUBLIC role: can only see their own grievances (by phone)
+    // They submit via POST which stores requesterPhone — scope reads to that
+    if (user.role === "PUBLIC" && user.phone) {
+      where.requesterPhone = user.phone
+    }
     
     if (status) where.status = status
     if (priority) where.priority = priority
@@ -163,8 +177,17 @@ export async function GET(req: NextRequest) {
   }
 }
 
+// Roles allowed to submit grievances
+const SUBMIT_ROLES = ["MINISTER", "PA", "ADMIN", "BACK_OFFICER", "OFFICER", "PUBLIC"]
+
 export async function POST(req: NextRequest) {
   try {
+    // Auth guard FIRST — before any body parsing or DB writes
+    const user = await getAuthUser(req)
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!SUBMIT_ROLES.includes(user.role))
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
     const body = await req.json()
     const ipAddress = req.headers.get('x-forwarded-for') || req.ip
     const userAgent = req.headers.get('user-agent')
@@ -189,28 +212,14 @@ export async function POST(req: NextRequest) {
       }
     })
 
-    // Create initial status update — skip if no authenticated user
-    const user = await getAuthUser(req)
-    const actorId = user?.id
-    if (actorId) {
-      await createStatusUpdate(
-        grievance.id,
-        actorId,
-        null,
-        GrievanceStatus.PENDING,
-        'Grievance created'
-      )
-      await createAuditLog(
-        'CREATE',
-        'GRIEVANCE',
-        grievance.id,
-        actorId,
-        null,
-        { id: grievance.id, referenceNumber: grievance.referenceNumber },
-        ipAddress ?? undefined,
-        userAgent ?? undefined
-      )
-    }
+    await createStatusUpdate(grievance.id, user.id, null, GrievanceStatus.PENDING, 'Grievance created')
+    await createAuditLog(
+      'CREATE', 'GRIEVANCE', grievance.id, user.id,
+      null,
+      { id: grievance.id, referenceNumber: grievance.referenceNumber },
+      ipAddress ?? undefined,
+      userAgent ?? undefined
+    )
 
     return NextResponse.json(grievance, { status: 201 })
   } catch (error) {

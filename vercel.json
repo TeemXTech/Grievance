@@ -6,6 +6,12 @@
       "use": "@vercel/next"
     }
   ],
+  "crons": [
+    {
+      "path": "/api/cron/overdue",
+      "schedule": "35 18 * * *"
+    }
+  ],
   "env": {
   }
 }

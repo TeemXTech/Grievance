@@ -257,18 +257,50 @@ model TTDRequest {
 }
 
 model VisitorLog {
-  id           String             @id @default(cuid())
-  visitorName  String
-  visitorPhone String?
-  visitDate    DateTime           @default(now())
-  purpose      String?
-  grievanceId  String?
-  projectId    String?
-  status       String?
-  notes        String?
-  createdAt    DateTime           @default(now())
-  grievance    Grievance?         @relation(fields: [grievanceId], references: [id])
-  project      GovernmentProject? @relation(fields: [projectId], references: [id])
+  id                String             @id @default(cuid())
+  tokenNumber       String             @unique // e.g. VIS-2026-0001 — daily token
+  visitorName       String
+  visitorPhone      String?            @db.VarChar(32)
+  visitorAadhar     String?            // masked, last 4 digits only in display
+  visitorAddress    String?
+  organization      String?            // delegation / party / dept
+  visitType         VisitType          @default(WALK_IN)
+  purpose           String
+  appointmentDate   DateTime           @default(now())
+  checkedInAt       DateTime?
+  checkedOutAt      DateTime?
+  meetingWith       String?            // officer/staff name they met
+  status            VisitorStatus      @default(WAITING)
+  outcomeNotes      String?            // what was decided / action taken
+  priorityFlag      Boolean            @default(false) // VIP / urgent flag
+  // Links
+  grievanceId       String?
+  projectId         String?
+  petitionId        String?            // link to PetitionRequest
+  loggedById        String?            // staff who logged this visitor
+  // Audit
+  notes             String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  grievance         Grievance?         @relation(fields: [grievanceId], references: [id])
+  project           GovernmentProject? @relation(fields: [projectId], references: [id])
+}
+
+enum VisitType {
+  WALK_IN
+  APPOINTMENT
+  VIP
+  DELEGATION
+  MEDIA
+  OFFICIAL
+}
+
+enum VisitorStatus {
+  WAITING
+  IN_MEETING
+  COMPLETED
+  CANCELLED
+  NO_SHOW
 }
 
 model ProjectStatusUpdate {
@@ -291,6 +323,10 @@ model WhatsAppMessage {
   rawText     String
   isProcessed Boolean   @default(false)
   grievanceId String?
+  // ── MEDIA ATTACHMENTS ──────────────────────────────────────────────────
+  mediaUrl    String?   // URL of image/doc/audio sent by citizen
+  mediaType   String?   // image | document | audio | video
+  mediaCaption String?  // Caption the citizen sent with the media
   createdAt   DateTime  @default(now())
   processedAt DateTime?
 }
@@ -389,16 +425,18 @@ enum GrievanceType {
 
 // 1. Geography: Mandals & Villages
 model Mandal {
-  id          String            @id @default(cuid())
-  name        String            @unique
-  district    String            @default("Peddapalli")
-  code        String?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  villages    Village[]
-  leaders     LocalLeader[]
-  works       PublicWork[]
-  petitions   PetitionRequest[]
+  id           String            @id @default(cuid())
+  name         String            @unique
+  district     String            @default("Peddapalli")
+  code         String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  villages     Village[]
+  leaders      LocalLeader[]
+  works        PublicWork[]
+  petitions    PetitionRequest[]
+  partyWorkers PartyWorker[]
+  booths       PollingBooth[]
 }
 
 model Village {
@@ -410,9 +448,10 @@ model Village {
   population  Int?
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
-  leaders     LocalLeader[]
-  works       PublicWork[]
-  petitions   PetitionRequest[]
+  leaders      LocalLeader[]
+  works        PublicWork[]
+  petitions    PetitionRequest[]
+  partyWorkers PartyWorker[]
 
   @@unique([name, mandalId])
 }
@@ -681,4 +720,715 @@ model TourAppointment {
   createdById      String?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
+}
+
+// ==========================================
+// LETTERS MANAGEMENT MODULE
+// ==========================================
+
+enum LetterDirection {
+  INBOUND   // Received by the office
+  OUTBOUND  // Sent from the office
+}
+
+enum LetterStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  DISPATCHED
+  RECEIVED
+  ACKNOWLEDGED
+  FILED
+  CANCELLED
+}
+
+enum LetterType {
+  DO_LETTER          // Demi-Official
+  OFFICIAL_LETTER    // Formal government letter
+  RECOMMENDATION     // Sifarish / endorsement letter
+  REPRESENTATION     // Representation to department
+  NOTICE             // Legal / official notice
+  CIRCULAR           // Circular to staff/departments
+  MEMO               // Internal memo
+  OTHER
+}
+
+model Letter {
+  id               String          @id @default(cuid())
+  letterNumber     String          @unique // e.g. LTR-OUT-2026-0001
+  direction        LetterDirection @default(OUTBOUND)
+  letterType       LetterType      @default(OFFICIAL_LETTER)
+  status           LetterStatus    @default(DRAFT)
+  subject          String
+  body             String?         // Full letter body / draft text
+  priority         Priority        @default(MEDIUM)
+
+  // From party
+  fromName         String
+  fromDesignation  String?
+  fromDepartment   String?
+  fromAddress      String?
+
+  // To party
+  toName           String
+  toDesignation    String?
+  toDepartment     String?
+  toAddress        String?
+
+  // Dispatch / receipt tracking
+  letterDate       DateTime        @default(now())
+  dueDate          DateTime?       // Expected response / action by date
+  dispatchedAt     DateTime?
+  receivedAt       DateTime?
+  acknowledgedAt   DateTime?
+
+  // Links to other entities
+  linkedPetitionId String?         // Link to PetitionRequest
+  linkedWorkId     String?         // Link to PublicWork
+
+  // Barcode / reference for physical tracking
+  barcodeRef       String?
+  fileUrl          String?         // Scanned copy URL
+
+  // Staff
+  draftedById      String          // User who created/drafted
+  draftedByName    String
+  approvedById     String?         // User who approved (PA/Minister)
+  approvedByName   String?
+
+  // Internal notes (Minister/PA only)
+  privateNotes     String?
+
+  // ── PESHI / SECRETARIAT FIELDS ──────────────────────────────────────────
+  fileNumber              String?   // Physical file no. e.g. "GO/RT/123/2026" or e-Office ref
+  eOfficeRef              String?   // e-Office system reference number
+  endorsementText         String?   // Minister's handwritten instruction e.g. "Please examine and do the needful"
+  endorsedById            String?   // User ID of Minister/PA who endorsed
+  endorsedByName          String?   // Denormalised name
+  endorsedAt              DateTime? // When endorsement was added
+  recipientAcknowledgedBy String?   // Name of person at receiving office who acknowledged
+  recipientAcknowledgedAt DateTime? // When they acknowledged receipt
+  currentlyWithName       String?   // Which officer/desk currently holds this file
+  currentlyWithDept       String?   // Which department currently holds this file
+  expectedReplyBy         DateTime? // Deadline for reply from recipient department
+
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  timeline         LetterTimeline[]
+}
+
+model LetterTimeline {
+  id              String       @id @default(cuid())
+  letterId        String
+  letter          Letter       @relation(fields: [letterId], references: [id], onDelete: Cascade)
+  fromStatus      LetterStatus?
+  toStatus        LetterStatus
+  actionTaken     String
+  remarks         String?
+  performedByName String
+  performedByRole String
+  createdAt       DateTime     @default(now())
+}
+
+// ==========================================
+// PARTY POST MANAGEMENT MODULE
+// ==========================================
+
+enum PartyPostLevel {
+  STATE
+  DISTRICT
+  ASSEMBLY
+  MANDAL
+  VILLAGE
+  BOOTH
+}
+
+model PartyPost {
+  id          String         @id @default(cuid())
+  title       String         // e.g. "Mandal President", "Youth Wing Secretary"
+  wing        String?        // e.g. "Youth Wing", "Women Wing", "Main Party"
+  level       PartyPostLevel @default(MANDAL)
+  description String?
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  workers     PartyWorker[]
+
+  @@unique([title, level, wing])
+}
+
+// ==========================================
+// PARTY WORKERS MANAGEMENT MODULE
+// ==========================================
+
+enum WorkerStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+model PartyWorker {
+  id               String        @id @default(cuid())
+  name             String
+  phone            String        @db.VarChar(32)
+  whatsappPhone    String?       @db.VarChar(32)
+  email            String?
+  photoUrl         String?
+  dateOfBirth      DateTime?
+  gender           String?       // MALE / FEMALE / OTHER
+
+  // Party post / designation
+  partyPostId      String?
+  partyPost        PartyPost?    @relation(fields: [partyPostId], references: [id])
+  postTitle        String?       // denormalised for quick display
+  wing             String?       // Youth Wing, Women Wing, Main Party, etc.
+
+  // Geo scope — which area this worker is responsible for
+  level            PartyPostLevel @default(MANDAL)
+  district         String?        @default("Peddapalli")
+  mandalId         String?
+  mandal           Mandal?        @relation(fields: [mandalId], references: [id])
+  mandalName       String?
+  villageId        String?
+  village          Village?       @relation(fields: [villageId], references: [id])
+  villageName      String?
+  boothNumber      String?        // Polling booth number if booth-level worker
+
+  // Status & activity
+  status           WorkerStatus   @default(ACTIVE)
+  joinedPartyOn    DateTime?
+  lastActiveAt     DateTime?
+  voterId          String?        // EPIC / Voter ID
+  aadharLast4      String?        // last 4 digits only
+
+  // Notes
+  notes            String?
+  privateNotes     String?        // Minister/PA only
+
+  // Audit
+  addedById        String?        // User who added this record
+  addedByName      String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+// ==========================================
+// MODULE: MULTIPLE OFFICE MANAGEMENT
+// ==========================================
+
+enum OfficeType {
+  SECRETARIAT       // Hyderabad / capital office
+  CONSTITUENCY      // Home constituency camp office
+  RESIDENCE         // Minister's residence office
+  DISTRICT          // District-level office
+  OTHER
+}
+
+model Office {
+  id           String     @id @default(cuid())
+  name         String     // e.g. "Hyderabad Secretariat", "Peddapalli Camp Office"
+  officeType   OfficeType @default(CONSTITUENCY)
+  address      String?
+  city         String?
+  phone        String?    @db.VarChar(32)
+  email        String?
+  inChargeName String?    // Officer in charge
+  isActive     Boolean    @default(true)
+  isDefault    Boolean    @default(false) // Only one office can be default
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  tasks        Task[]
+}
+
+// ==========================================
+// MODULE: TASKS (MULTI-OFFICE AWARE)
+// ==========================================
+
+enum TaskStatus {
+  OPEN
+  IN_PROGRESS
+  PENDING_INFO
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model Task {
+  id               String      @id @default(cuid())
+  title            String
+  description      String?
+  status           TaskStatus  @default(OPEN)
+  priority         TaskPriority @default(MEDIUM)
+
+  // Office routing
+  officeId         String?
+  office           Office?     @relation(fields: [officeId], references: [id])
+  officeName       String?     // denormalised
+
+  // Assignment
+  assignedToId     String?     // User ID
+  assignedToName   String?
+  assignedToRole   String?
+  createdById      String
+  createdByName    String
+  createdByRole    String
+
+  // Linked entities
+  linkedPetitionId String?
+  linkedWorkId     String?
+  linkedLetterId   String?
+
+  // Deadlines & escalation
+  dueDate          DateTime?
+  completedAt      DateTime?
+  isOverdue        Boolean    @default(false)
+
+  // Voice note transcription (AI)
+  voiceNoteUrl     String?
+  transcription    String?
+
+  notes            String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+}
+
+// ==========================================
+// MODULE: CONSTITUENCY SURVEY + BOOTH GRADING
+// ==========================================
+
+enum SurveyStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+  ARCHIVED
+}
+
+enum QuestionType {
+  YES_NO
+  RATING_1_5
+  MULTIPLE_CHOICE
+  TEXT
+}
+
+model Survey {
+  id            String       @id @default(cuid())
+  title         String
+  description   String?
+  status        SurveyStatus @default(DRAFT)
+  targetLevel   String       @default("BOOTH") // BOOTH / VILLAGE / MANDAL
+  languages     Json?        // ["te", "hi", "en"] — supported languages
+  startsAt      DateTime?
+  endsAt        DateTime?
+  createdById   String
+  createdByName String
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  questions     SurveyQuestion[]
+  responses     SurveyResponse[]
+  boothGrades   BoothGrade[]
+}
+
+model SurveyQuestion {
+  id           String       @id @default(cuid())
+  surveyId     String
+  survey       Survey       @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  orderIndex   Int          @default(0)
+  questionType QuestionType @default(YES_NO)
+  questionText String       // English
+  questionTe   String?      // Telugu
+  questionHi   String?      // Hindi
+  options      Json?        // For MULTIPLE_CHOICE: ["Option A", "Option B"]
+  isRequired   Boolean      @default(true)
+  weight       Float        @default(1.0) // For booth grading score calculation
+  createdAt    DateTime     @default(now())
+}
+
+model SurveyResponse {
+  id             String   @id @default(cuid())
+  surveyId       String
+  survey         Survey   @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+
+  // Geo scope of this response
+  boothNumber    String?
+  villageName    String?
+  mandalName     String?
+  district       String?  @default("Peddapalli")
+
+  // Respondent (citizen — optional, can be anonymous)
+  respondentName  String?
+  respondentPhone String?  @db.VarChar(32)
+  voterId         String?
+
+  // Answers: { questionId: answer } stored as JSON
+  answers        Json
+
+  // Collected by
+  collectedById   String?
+  collectedByName String?
+  collectedAt     DateTime @default(now())
+
+  // GPS at time of collection
+  latitude        Float?
+  longitude       Float?
+
+  createdAt       DateTime @default(now())
+}
+
+// Nightly computed booth grade — updated by cron / on-demand
+model BoothGrade {
+  id                    String   @id @default(cuid())
+  surveyId              String
+  survey                Survey   @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  boothNumber           String
+  villageName           String?
+  mandalName            String?
+
+  // Scoring components (0-100 each)
+  schemePenetrationScore  Float  @default(0)
+  grievanceResolutionScore Float @default(0)
+  surveysentimentScore    Float  @default(0)
+  totalScore              Float  @default(0)
+
+  // Grade: A=Stronghold, B=Leaning, C=Swing, D=Critical
+  grade                 String   @default("C")
+  previousGrade         String?
+  gradeDrop             Boolean  @default(false) // true if dropped since last compute
+
+  responseCount         Int      @default(0)
+  computedAt            DateTime @default(now())
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([surveyId, boothNumber])
+}
+
+// ==========================================
+// MODULE: MPLADS / MLACDS FUND TRACKING
+// ==========================================
+
+enum FundScheme {
+  MPLADS    // Member of Parliament Local Area Development Scheme
+  MLACDS    // MLA Constituency Development Scheme
+  STATE     // State government discretionary fund
+  OTHER
+}
+
+enum FundAllocationStatus {
+  RECOMMENDED           // Minister recommended, letter sent
+  LETTER_SENT           // Letter sent to Collector
+  ADMIN_SANCTION        // Administrative Sanction issued
+  TECH_SANCTION         // Technical Sanction issued
+  TENDER_FLOATED        // Tender process started
+  WORK_IN_PROGRESS      // Construction / work started
+  COMPLETED             // Work completed
+  CANCELLED             // Cancelled / lapsed
+}
+
+model FundAllocation {
+  id                   String              @id @default(cuid())
+  referenceNumber      String              @unique // e.g. FUND-MLACDS-2026-001
+  scheme               FundScheme          @default(MLACDS)
+  financialYear        String              // e.g. "2025-26"
+  status               FundAllocationStatus @default(RECOMMENDED)
+
+  // What the fund is for
+  workTitle            String
+  workDescription      String?
+  category             String?             // Roads, Water, Education, etc.
+
+  // Location
+  district             String              @default("Peddapalli")
+  mandalName           String?
+  villageName          String?
+  wardNumber           String?
+
+  // Financials
+  recommendedAmount    Float
+  sanctionedAmount     Float?
+  releasedAmount       Float?              @default(0)
+  utilizedAmount       Float?              @default(0)
+
+  // Bureaucratic stage tracking (Rule 6 equivalent for funds)
+  recommendationDate   DateTime?           // Stage 1: Letter sent
+  adminSanctionDate    DateTime?           // Stage 2: AS issued
+  techSanctionDate     DateTime?           // Stage 3: TS issued
+  tenderDate           DateTime?           // Stage 3b: Tender floated
+  firstInstallmentDate DateTime?           // Stage 4a
+  finalInstallmentDate DateTime?           // Stage 4b
+  completionDate       DateTime?
+
+  // Linked project
+  linkedProjectId      String?             // Link to GovernmentProject
+
+  // Stuck alert
+  isStuck              Boolean             @default(false)
+  stuckReason          String?
+  stuckSince           DateTime?
+
+  // People
+  recommendedById      String
+  recommendedByName    String
+  collectorOffice      String?             // District Collector office reference
+  executingAgency      String?             // e.g. "Panchayat Raj", "R&B"
+
+  notes                String?
+  privateNotes         String?             // Minister/PA only
+
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  timeline             FundTimeline[]
+}
+
+model FundTimeline {
+  id               String              @id @default(cuid())
+  fundAllocationId String
+  fundAllocation   FundAllocation      @relation(fields: [fundAllocationId], references: [id], onDelete: Cascade)
+  fromStatus       FundAllocationStatus?
+  toStatus         FundAllocationStatus
+  actionTaken      String
+  remarks          String?
+  performedByName  String
+  performedByRole  String
+  createdAt        DateTime            @default(now())
+}
+
+// ==========================================
+// MODULE: LIVING CONSTITUENCY GRAPH
+// Citizen + Household + PollingBooth
+// ==========================================
+
+model PollingBooth {
+  id           String      @id @default(cuid())
+  boothNumber  String      // e.g. "42"
+  boothName    String?     // Official booth name
+  address      String?
+  mandalId     String?
+  mandal       Mandal?     @relation(fields: [mandalId], references: [id])
+  mandalName   String?
+  villageName  String?
+  district     String      @default("Peddapalli")
+  totalVoters  Int?        // From ECI data
+  maleVoters   Int?
+  femaleVoters Int?
+  otherVoters  Int?
+  // Grade from survey engine
+  currentGrade String?     // A/B/C/D
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  households   Household[]
+  citizens     Citizen[]
+
+  @@unique([boothNumber, mandalId])
+}
+
+model Household {
+  id            String       @id @default(cuid())
+  houseNumber   String?      // House number from ECI roll
+  address       String?
+  streetColony  String?
+  villageName   String?
+  mandalName    String?
+  district      String       @default("Peddapalli")
+  boothId       String?
+  booth         PollingBooth? @relation(fields: [boothId], references: [id])
+  boothNumber   String?
+  // Scheme benefits received by this household
+  schemeBenefits Json?       // { "PM_AWAS": true, "RYTHU_BANDHU": false, ... }
+  notes         String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  citizens      Citizen[]
+}
+
+enum CitizenGender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+model Citizen {
+  id              String        @id @default(cuid())
+  // ECI Electoral Roll fields
+  epicNumber      String?       @unique // Voter ID / EPIC
+  name            String
+  fatherOrHusband String?       // Father's / Husband's name (from ECI roll)
+  age             Int?
+  gender          CitizenGender?
+  // Address / Geo
+  houseNumber     String?
+  streetColony    String?
+  villageName     String?
+  mandalName      String?
+  district        String        @default("Peddapalli")
+  pincode         String?
+  boothId         String?
+  booth           PollingBooth? @relation(fields: [boothId], references: [id])
+  boothNumber     String?
+  householdId     String?
+  household       Household?    @relation(fields: [householdId], references: [id])
+  // Enrichment (added over time via camp office / survey)
+  phone           String?       @db.VarChar(32)
+  whatsappOptIn   Boolean       @default(false)
+  aadharLast4     String?       // last 4 digits only
+  // Scheme benefits
+  schemeBenefits  Json?         // { "PM_AWAS": true, "RYTHU_BANDHU": false, ... }
+  // Interaction history
+  lastInteraction DateTime?
+  interactionCount Int          @default(0)
+  // Source of record
+  dataSource      String        @default("ECI_ROLL") // ECI_ROLL / CAMP_OFFICE / SURVEY / MANUAL
+  isActive        Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+// ==========================================
+// MODULE: OUTBOUND CAMPAIGNS (WhatsApp / SMS)
+// ==========================================
+
+enum CampaignChannel {
+  WHATSAPP
+  SMS
+  BOTH
+}
+
+enum CampaignStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  SENDING
+  SENT
+  CANCELLED
+}
+
+model Campaign {
+  id               String         @id @default(cuid())
+  title            String
+  messageTemplate  String         // Template with {{Citizen_Name}}, {{Work_Status}} etc.
+  channel          CampaignChannel @default(WHATSAPP)
+  status           CampaignStatus  @default(DRAFT)
+  // Targeting segment (stored as a query descriptor)
+  segmentQuery     Json?          // { mandal: "Manthani", scheme: "PM_AWAS", boothGrade: "D" }
+  segmentLabel     String?        // Human-readable: "Ward 8 water grievance citizens"
+  recipientCount   Int            @default(0)
+  sentCount        Int            @default(0)
+  deliveredCount   Int            @default(0)
+  failedCount      Int            @default(0)
+  // Two-key approval
+  createdById      String
+  createdByName    String
+  approvedById     String?
+  approvedByName   String?
+  approvedAt       DateTime?
+  scheduledAt      DateTime?
+  sentAt           DateTime?
+  notes            String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  deliveries       CampaignDelivery[]
+}
+
+model CampaignDelivery {
+  id           String   @id @default(cuid())
+  campaignId   String
+  campaign     Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  phone        String   @db.VarChar(32)
+  citizenName  String?
+  citizenId    String?  // Link to Citizen if matched
+  message      String   // Rendered message with variables substituted
+  status       String   @default("PENDING") // PENDING / SENT / DELIVERED / READ / FAILED
+  sentAt       DateTime?
+  deliveredAt  DateTime?
+  readAt       DateTime?
+  errorMessage String?
+  createdAt    DateTime @default(now())
+}
+
+// ==========================================
+// MODULE: ASSEMBLY QUESTIONS (LAQ / LCQ)
+// Tracks Legislative Assembly Questions related to the Minister's portfolio
+// ==========================================
+
+enum AQType {
+  STARRED       // Oral answer required in Assembly
+  UNSTARRED     // Written answer submitted
+  SHORT_NOTICE  // Urgent / short-notice question
+  CALLING_ATTENTION // Calling attention motion
+}
+
+enum AQStatus {
+  RECEIVED        // Question received from Assembly Secretariat
+  SENT_TO_DEPT    // Forwarded to concerned department for answer
+  DRAFT_RECEIVED  // Draft answer received from department
+  UNDER_REVIEW    // PA / Minister reviewing the draft
+  ANSWER_READY    // Final answer approved
+  ANSWERED        // Answered in Assembly
+  LAPSED          // Session ended without being called
+}
+
+model AssemblyQuestion {
+  id                  String    @id @default(cuid())
+  questionNumber      String    @unique  // e.g. "LAQ-2026-0142"
+  sessionName         String             // e.g. "Budget Session 2026"
+  questionType        AQType    @default(STARRED)
+  status              AQStatus  @default(RECEIVED)
+
+  // Question details
+  subject             String             // One-line subject
+  questionText        String             // Full question text
+  askedByMLA          String             // MLA name who raised the question
+  askedByConstituency String?            // MLA's constituency
+  ministry            String             // Which ministry this falls under
+  department          String?            // Specific department
+
+  // Dates
+  receivedDate        DateTime  @default(now())
+  answerDueDate       DateTime?          // Deadline to submit answer to Assembly
+  answeredDate        DateTime?          // When actually answered
+
+  // Answer tracking
+  sentToDeptAt        DateTime?
+  sentToDeptName      String?            // Which dept it was sent to
+  draftReceivedAt     DateTime?
+  draftAnswerText     String?            // Draft from department
+  finalAnswerText     String?            // Approved final answer
+  talkingPoints       String?            // AI-generated bullet points for Minister
+
+  // Links
+  linkedPetitionId    String?            // If question relates to a citizen petition
+  linkedWorkId        String?            // If question relates to a public work
+  linkedLetterId      String?            // If a letter was sent as part of answer
+  fileUrl             String?            // Scanned question paper / answer document
+
+  // Staff
+  handledById         String?            // PA/ADMIN handling this
+  handledByName       String?
+  privateNotes        String?            // Minister/PA only
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  timeline            AQTimeline[]
+}
+
+model AQTimeline {
+  id                  String           @id @default(cuid())
+  assemblyQuestionId  String
+  question            AssemblyQuestion @relation(fields: [assemblyQuestionId], references: [id], onDelete: Cascade)
+  fromStatus          AQStatus?
+  toStatus            AQStatus
+  actionTaken         String
+  remarks             String?
+  performedByName     String
+  performedByRole     String
+  createdAt           DateTime         @default(now())
 }

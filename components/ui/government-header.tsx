@@ -2,6 +2,7 @@
 import Image from "next/image"
 import { Bell, User, LogOut, Menu } from "lucide-react"
 import { Button } from "./button"
+import { signOut } from "next-auth/react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -84,7 +85,7 @@ export function GovernmentHeader({
                 </DropdownMenuItem>
                 <DropdownMenuItem>Settings</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-red-600">
+                <DropdownMenuItem className="text-red-600" onClick={() => signOut({ callbackUrl: '/auth/login' })}>
                   <LogOut className="mr-2 h-4 w-4" />
                   Sign Out
                 </DropdownMenuItem>

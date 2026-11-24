@@ -1,16 +1,9 @@
 "use client"
-import { useRouter } from "next/navigation"
 import { useEffect } from "react"
-import { signIn } from "next-auth/react"
+import { useRouter } from "next/navigation"
 
 export default function MinisterLogin() {
   const router = useRouter()
-  useEffect(() => {
-    const login = async () => {
-      await signIn("credentials", { email: "minister@gov.in", password: "x", redirect: false })
-      router.push("/minister/dashboard")
-    }
-    login()
-  }, [router])
-  return <div>Logging in as Minister...</div>
+  useEffect(() => { router.replace("/auth/login") }, [router])
+  return null
 }

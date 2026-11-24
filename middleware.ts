@@ -4,11 +4,11 @@ import { NextRequest, NextResponse } from "next/server"
 
 // Role → allowed route prefixes
 const ROLE_ROUTES: Record<string, string[]> = {
-  MINISTER:           ["/minister", "/api/minister", "/api/pa", "/api/analytics", "/api/categories", "/api/notifications", "/api/ai", "/api/users"],
-  PA:                 ["/pa", "/api/pa", "/api/minister", "/api/categories", "/api/notifications", "/api/ai"],
-  BACK_OFFICER:       ["/back-officer", "/api/grievances", "/api/requests", "/api/minister/projects", "/api/categories", "/api/notifications", "/api/ai/voice-intake", "/api/ai/duplicate-check"],
-  FIELD_OFFICER:      ["/field", "/field-officer", "/api/field", "/api/notifications"],
-  ADMIN:              ["/admin", "/api/admin", "/api/users", "/api/grievances", "/api/categories", "/api/requests", "/api/minister", "/api/pa", "/api/field", "/api/analytics", "/api/notifications", "/api/ai"],
+  MINISTER:           ["/minister", "/visitors", "/letters", "/api/minister", "/api/pa", "/api/analytics", "/api/categories", "/api/notifications", "/api/ai", "/api/users", "/api/dashboard", "/api/visitors", "/api/letters", "/api/party-workers", "/api/party-posts", "/api/offices", "/api/tasks", "/api/surveys", "/api/funds", "/api/constituents", "/api/documents", "/api/campaigns", "/api/reports", "/api/audit-logs", "/api/government-projects", "/api/calendar", "/api/assembly-questions", "/api/cron", "/api/whatsapp"],
+  PA:                 ["/pa", "/visitors", "/letters", "/api/pa", "/api/minister", "/api/categories", "/api/notifications", "/api/ai", "/api/analytics", "/api/visitors", "/api/letters", "/api/party-workers", "/api/party-posts", "/api/offices", "/api/tasks", "/api/surveys", "/api/funds", "/api/constituents", "/api/documents", "/api/campaigns", "/api/reports", "/api/users", "/api/government-projects", "/api/calendar", "/api/assembly-questions", "/api/cron", "/api/upload", "/api/whatsapp"],
+  BACK_OFFICER:       ["/back-officer", "/visitors", "/letters", "/api/grievances", "/api/requests", "/api/minister/projects", "/api/categories", "/api/notifications", "/api/ai/voice-intake", "/api/ai/duplicate-check", "/api/dashboard", "/api/visitors", "/api/letters", "/api/party-workers", "/api/party-posts", "/api/offices", "/api/tasks", "/api/surveys", "/api/funds", "/api/constituents", "/api/documents", "/api/pa/metadata", "/api/government-projects", "/api/calendar", "/api/assembly-questions", "/api/upload", "/api/whatsapp"],
+  FIELD_OFFICER:      ["/field", "/field-officer", "/api/field", "/api/notifications", "/api/tasks", "/api/surveys", "/api/constituents", "/api/minister/projects", "/api/upload"],
+  ADMIN:              ["/admin", "/visitors", "/api/admin", "/api/users", "/api/grievances", "/api/categories", "/api/requests", "/api/minister", "/api/pa", "/api/field", "/api/analytics", "/api/notifications", "/api/ai", "/api/visitors", "/api/letters", "/api/party-workers", "/api/party-posts", "/api/offices", "/api/tasks", "/api/surveys", "/api/funds", "/api/constituents", "/api/documents", "/api/campaigns", "/api/reports", "/api/audit-logs", "/api/government-projects", "/api/calendar", "/api/assembly-questions", "/api/cron", "/api/upload", "/api/whatsapp"],
   OFFICER:            ["/dashboard", "/api/grievances", "/api/categories", "/api/notifications"],
   GOVERNMENT_OFFICIAL:["/dashboard", "/api/grievances", "/api/categories"],
   LOCAL_LEADER:       ["/dashboard"],
@@ -73,8 +73,14 @@ export async function middleware(req: NextRequest) {
 
   const role = token.role as string
 
-  // API routes: return 403 if role not allowed
+  // API routes: return 401 if not authenticated, 403 if wrong role
   if (pathname.startsWith("/api/")) {
+    if (!token) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      )
+    }
     const allowed = ROLE_ROUTES[role] ?? []
     const canAccess = allowed.some((prefix) => pathname.startsWith(prefix))
     if (!canAccess) {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAuthUser, hasRole } from '@/lib/auth-middleware'
 import { runOverdueEscalation } from '@/lib/overdue-escalation'
+import { createAuditLog } from '@/lib/audit-log'
 
 export async function GET(req: NextRequest) {
   try {
@@ -141,20 +142,22 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Generate unique tracking number
-    const count = await prisma.petitionRequest.count()
+    // Generate unique tracking number — safe against concurrent creates
     const prefix =
-      type === 'CMRF_MEDICAL'
-        ? 'CMRF'
-        : type === 'JOB_EMPLOYMENT'
-        ? 'JOB'
-        : type === 'EMPLOYEE_TRANSFER'
-        ? 'TRF'
-        : type === 'SCHEME_FINANCIAL'
-        ? 'SCH'
-        : 'REQ'
-    const trackingNumber = `REQ-${prefix}-2026-${String(count + 101).padStart(4, '0')}`
-    const qrCode = `QR-REQ-${prefix}-2026-${String(count + 101).padStart(4, '0')}`
+      type === 'CMRF_MEDICAL'      ? 'CMRF'
+      : type === 'JOB_EMPLOYMENT'  ? 'JOB'
+      : type === 'EMPLOYEE_TRANSFER' ? 'TRF'
+      : type === 'SCHEME_FINANCIAL'  ? 'SCH'
+      : 'REQ'
+    const yearStr = new Date().getFullYear()
+    const prefixFull = `REQ-${prefix}-${yearStr}-`
+    const last = await prisma.petitionRequest.findFirst({
+      where: { trackingNumber: { startsWith: prefixFull } },
+      orderBy: { trackingNumber: 'desc' },
+    })
+    const seq = last ? parseInt(last.trackingNumber.split('-').pop()!, 10) + 1 : 1
+    const trackingNumber = `${prefixFull}${String(seq).padStart(4, '0')}`
+    const qrCode = `QR-${trackingNumber}`
 
     // Calculate due date
     const dueDate = new Date(Date.now() + daysAllowed * 24 * 60 * 60 * 1000)
@@ -172,8 +175,8 @@ export async function POST(req: NextRequest) {
         applicantAadhar,
         applicantAddress,
         district,
-        mandalName: mandalName || 'Manthanani',
-        villageName: villageName || 'Manthanani Town',
+        mandalName: mandalName || null,
+        villageName: villageName || null,
         referredByLeaderId: referredByLeaderId || null,
         referredByLeaderName: referredByLeaderName || null,
         leaderEndorsementNote,
@@ -209,6 +212,8 @@ export async function POST(req: NextRequest) {
         isPrivateNote: false,
       },
     })
+
+    await createAuditLog({ action: 'CREATE', entityType: 'PETITION', entityId: newPetition.id, userId: user.id, newValues: { trackingNumber, type, applicantName } })
 
     return NextResponse.json({
       success: true,

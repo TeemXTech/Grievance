@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAuthUser, hasRole } from '@/lib/auth-middleware'
+import { createAuditLog } from '@/lib/audit-log'
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -100,6 +101,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
           isPrivateNote: !!isPrivateNote,
         },
       })
+    }
+
+    if (status && status !== existing.status) {
+      await createAuditLog({ action: 'STATUS_CHANGE', entityType: 'PETITION', entityId: id, userId: user.id, oldValues: { status: existing.status }, newValues: { status } })
     }
 
     // Fetch updated petition with full relations

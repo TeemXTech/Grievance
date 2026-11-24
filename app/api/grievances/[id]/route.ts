@@ -1,71 +1,79 @@
 import { NextRequest, NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
+import { getAuthUser } from "@/lib/auth-middleware"
+import { createAuditLog } from "@/lib/audit-log"
 
-// In-memory storage for demo with dummy data
-let grievances: any[] = [
-  {
-    id: 1, trackingNumber: "GRI-I-23-08012025", title: "Road Repair Needed", category: "Infrastructure",
-    status: "Pending", priority: "High", citizenName: "Rajesh Kumar", citizenPhone: "+91-9876543210",
-    location: "Manthanani Village", description: "Main road has multiple potholes", 
-    createdAt: "2025-01-08T10:30:00Z", updatedAt: "2025-01-08T10:30:00Z", assignedTo: "Field Officer Ramesh"
-  },
-  {
-    id: 2, trackingNumber: "GRI-H-45-07012025", title: "Water Supply Issue", category: "Water",
-    status: "In Progress", priority: "Medium", citizenName: "Sita Devi", citizenPhone: "+91-9876543211",
-    location: "Ramagundam", description: "Irregular water supply", 
-    createdAt: "2025-01-07T10:30:00Z", updatedAt: "2025-01-07T10:30:00Z", assignedTo: "PA Srinivas"
-  },
-  {
-    id: 3, trackingNumber: "GRI-E-67-06012025", title: "School Building Repair", category: "Education",
-    status: "Resolved", priority: "Medium", citizenName: "Ravi Kumar", citizenPhone: "+91-9876543212",
-    location: "Karimnagar", description: "School roof needs repair", 
-    createdAt: "2025-01-06T10:30:00Z", updatedAt: "2025-01-06T10:30:00Z", assignedTo: "Engineer Kumar"
-  }
-]
+// Roles that can read a single grievance
+const READ_ROLES   = ["MINISTER", "PA", "ADMIN", "BACK_OFFICER", "OFFICER", "FIELD_OFFICER", "PUBLIC"]
+// Roles that can update status / assignment
+const UPDATE_ROLES = ["MINISTER", "PA", "ADMIN", "BACK_OFFICER", "OFFICER"]
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+  const user = await getAuthUser(req)
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!READ_ROLES.includes(user.role))
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
   try {
-    const id = parseInt(params.id)
-    
-    let grievance = grievances.find(g => g.id === id)
-    
-    // Fallback to mock data if not found
-    if (!grievance) {
-      grievance = {
-        id,
-        trackingNumber: `GRI-I-${id.toString().padStart(2, '0')}-08012025`,
-        title: "Road Repair Needed",
-        description: "Main road has multiple potholes causing accidents",
-        category: "Infrastructure",
-        status: "Pending",
-        priority: "High",
-        citizenName: "Rajesh Kumar",
-        citizenPhone: "+91-98765*****", // Masked for privacy
-        location: "Manthanani Village",
-        createdAt: "2025-01-08T10:30:00Z",
-        updatedAt: "2025-01-08T10:30:00Z",
-        assignedTo: "Field Officer Ramesh",
-        attachments: []
-      }
-    } else {
-      // Mask phone number for privacy in public view
-      grievance = {
-        ...grievance,
-        citizenPhone: grievance.citizenPhone.replace(/.(?=.{4})/g, '*')
-      }
+    const grievance = await prisma.grievance.findUnique({
+      where: { id: params.id },
+      include: {
+        category: true,
+        assignedTo: { select: { id: true, name: true, email: true, role: true } },
+        attachments: true,
+        statusUpdates: {
+          include: { user: { select: { name: true, role: true } } },
+          orderBy: { createdAt: "desc" },
+        },
+      },
+    })
+
+    if (!grievance) return NextResponse.json({ error: "Grievance not found" }, { status: 404 })
+
+    return NextResponse.json({ success: true, grievance })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+}
+
+export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+  const user = await getAuthUser(req)
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!UPDATE_ROLES.includes(user.role))
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
+  try {
+    const body = await req.json()
+    const { status, assignedToId, remarks, priority } = body
+
+    const existing = await prisma.grievance.findUnique({ where: { id: params.id } })
+    if (!existing) return NextResponse.json({ error: "Grievance not found" }, { status: 404 })
+
+    const updateData: any = {}
+    if (status) updateData.status = status
+    if (assignedToId !== undefined) updateData.assignedToId = assignedToId
+    if (priority) updateData.priority = priority
+
+    const updated = await prisma.grievance.update({ where: { id: params.id }, data: updateData })
+
+    if (status && status !== existing.status) {
+      await prisma.grievanceStatusUpdate.create({
+        data: {
+          grievanceId: params.id,
+          userId: user.id,
+          oldStatus: existing.status,
+          newStatus: status,
+          remarks,
+        },
+      })
     }
 
-    return NextResponse.json({
-      success: true,
-      grievance
-    })
-  } catch (error) {
-    console.error("Error fetching grievance:", error)
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    )
+    if (status && status !== existing.status) {
+      await createAuditLog({ action: "STATUS_CHANGE", entityType: "GRIEVANCE", entityId: params.id, userId: user.id, oldValues: { status: existing.status }, newValues: { status } })
+    }
+
+    return NextResponse.json({ success: true, grievance: updated })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }

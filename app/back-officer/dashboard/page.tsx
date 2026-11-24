@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
-import { LayoutDashboard, FileText, Building2, Settings, RefreshCw, Bell, ChevronDown, Plus, Search, X, Send, AlertTriangle, CheckCircle2, Clock } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { LayoutDashboard, FileText, Building2, Settings, RefreshCw, Bell, ChevronDown, Plus, Search, X, Send, AlertTriangle, CheckCircle2, Clock, Users } from "lucide-react"
 import { GovSidebar, type NavItem } from "@/components/GovSidebar"
 
 interface Grievance { id: string; trackingId: string; title: string; category: string; status: string; priority: string; citizenName: string; citizenPhone: string; location: string; description: string; createdAt: string }
@@ -12,6 +13,7 @@ const NAV: NavItem[] = [
   { key: "overview",   label: "Overview",     Icon: LayoutDashboard },
   { key: "grievances", label: "Grievances",   Icon: FileText },
   { key: "works",      label: "Public Works", Icon: Building2 },
+  { key: "visitors",   label: "Visitors",     Icon: Users },
   { key: "settings",   label: "Settings",     Icon: Settings },
 ]
 
@@ -37,6 +39,7 @@ function Badge({ label, color, bg }: { label: string; color: string; bg: string 
 
 export default function BackOfficerDashboard() {
   const { data: session } = useSession()
+  const router = useRouter()
   const name = (session?.user as any)?.name || "Back Officer"
   const initials = name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()
 
@@ -88,7 +91,10 @@ export default function BackOfficerDashboard() {
 
   return (
     <div className="gov-app">
-      <GovSidebar items={NAV} active={activeNav} onNav={setActiveNav} role="BACK_OFFICER" userName={name} />
+      <GovSidebar items={NAV} active={activeNav} onNav={(key) => {
+        if (key === "visitors") { router.push("/visitors/dashboard"); return }
+        setActiveNav(key)
+      }} role="BACK_OFFICER" userName={name} />
 
       <div className="gov-main">
         <header className="gov-header">

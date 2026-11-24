@@ -27,7 +27,7 @@ ChartJS.register(
   Title
 );
 
-const AnalyticsGraphs = ({ grievances, projects, events }) => {
+const AnalyticsGraphs = ({ grievances, projects, events }: { grievances: any[]; projects: any[]; events: any[] }) => {
   const grievanceCategories = grievances.reduce((acc, g) => {
     acc[g.category] = (acc[g.category] || 0) + 1;
     return acc;
@@ -43,7 +43,7 @@ const AnalyticsGraphs = ({ grievances, projects, events }) => {
     return acc;
   }, {});
 
-  const eventsByDay = events.month.reduce((acc, e) => {
+  const eventsByDay = (events || []).reduce((acc: Record<string, number>, e: any) => {
     const day = e.date;
     acc[day] = (acc[day] || 0) + 1;
     return acc;

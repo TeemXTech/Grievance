@@ -183,32 +183,7 @@ export function GrievanceDetails() {
         <Card className="p-6">
           <h3 className="text-xl font-bold mb-4">Location Map</h3>
           <div className="h-96 relative">
-            <MapContainer
-              center={[
-                grievance.location.coordinates[1],
-                grievance.location.coordinates[0]
-              ]}
-              zoom={13}
-              className="h-full w-full"
-            >
-              <TileLayer
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              />
-              <Marker
-                position={[
-                  grievance.location.coordinates[1],
-                  grievance.location.coordinates[0]
-                ]}
-              >
-                <Popup>
-                  <div>
-                    <strong>{grievance.citizenName}</strong>
-                    <p>{grievance.description.substring(0, 100)}...</p>
-                  </div>
-                </Popup>
-              </Marker>
-            </MapContainer>
+            <p className="text-sm text-gray-500">Map view available in field officer dashboard.</p>
           </div>
         </Card>
       )}

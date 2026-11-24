@@ -1,76 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getMessageTemplate } from '@/lib/messages'
-import { getColorForStatus } from '@/lib/colors'
-
-// In-memory storage for demo with dummy data
-let grievances: any[] = [
-  {
-    id: 1, trackingNumber: "GRI-I-23-08012025", title: "Road Repair Needed", category: "Infrastructure",
-    status: "Pending", priority: "High", citizenName: "Rajesh Kumar", citizenPhone: "+91-9876543210",
-    location: "Manthanani Village", description: "Main road has multiple potholes", 
-    createdAt: "2025-01-08T10:30:00Z", updatedAt: "2025-01-08T10:30:00Z", assignedTo: "Field Officer Ramesh"
-  },
-  {
-    id: 2, trackingNumber: "GRI-H-45-07012025", title: "Water Supply Issue", category: "Water",
-    status: "In Progress", priority: "Medium", citizenName: "Sita Devi", citizenPhone: "+91-9876543211",
-    location: "Ramagundam", description: "Irregular water supply", 
-    createdAt: "2025-01-07T10:30:00Z", updatedAt: "2025-01-07T10:30:00Z", assignedTo: "PA Srinivas"
-  },
-  {
-    id: 3, trackingNumber: "GRI-E-67-06012025", title: "School Building Repair", category: "Education",
-    status: "Resolved", priority: "Medium", citizenName: "Ravi Kumar", citizenPhone: "+91-9876543212",
-    location: "Karimnagar", description: "School roof needs repair", 
-    createdAt: "2025-01-06T10:30:00Z", updatedAt: "2025-01-06T10:30:00Z", assignedTo: "Engineer Kumar"
-  }
-]
+import { prisma } from '@/lib/prisma'
+import { getAuthUser } from '@/lib/auth-middleware'
 
 export async function PUT(request: NextRequest) {
+  const user = await getAuthUser(request)
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   try {
-    const body = await request.json()
-    const { id, status, assignedTo, language = 'en' } = body
+    const { id, status, assignedToId, remarks } = await request.json()
 
-    const grievanceIndex = grievances.findIndex(g => g.id === parseInt(id))
-    
-    if (grievanceIndex === -1) {
-      return NextResponse.json({
-        error: 'Grievance not found'
-      }, { status: 404 })
-    }
+    if (!id || !status) return NextResponse.json({ error: 'id and status are required' }, { status: 400 })
 
-    const grievance = grievances[grievanceIndex]
-    const oldStatus = grievance.status
+    const existing = await prisma.grievance.findUnique({ where: { id } })
+    if (!existing) return NextResponse.json({ error: 'Grievance not found' }, { status: 404 })
 
-    // Update grievance
-    grievances[grievanceIndex] = {
-      ...grievance,
-      status,
-      assignedTo: assignedTo || grievance.assignedTo,
-      updatedAt: new Date().toISOString(),
-      statusColor: getColorForStatus(status)
-    }
-
-    // Send WhatsApp notification if status changed
-    if (oldStatus !== status) {
-      const message = getMessageTemplate(language, 'statusUpdate', {
-        trackingNumber: grievance.trackingNumber,
-        title: grievance.title,
-        citizenName: grievance.citizenName,
-        status
-      })
-
-      console.log(`WhatsApp notification sent to ${grievance.citizenPhone}: ${message}`)
-    }
-
-    return NextResponse.json({
-      success: true,
-      grievance: grievances[grievanceIndex],
-      message: 'Grievance updated successfully'
+    const updated = await prisma.grievance.update({
+      where: { id },
+      data: {
+        status,
+        ...(assignedToId && { assignedToId }),
+      },
     })
 
-  } catch (error) {
-    console.error('Error updating grievance:', error)
-    return NextResponse.json({
-      error: 'Failed to update grievance'
-    }, { status: 500 })
+    await prisma.grievanceStatusUpdate.create({
+      data: {
+        grievanceId: id,
+        userId: user.id,
+        oldStatus: existing.status,
+        newStatus: status,
+        remarks,
+      },
+    })
+
+    return NextResponse.json({ success: true, grievance: updated })
+  } catch (error: any) {
+    console.error('Error updating grievance status:', error)
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }

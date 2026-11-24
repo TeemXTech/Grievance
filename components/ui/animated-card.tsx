@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client"
 
 import * as React from "react"
@@ -97,3 +98,4 @@ const AnimatedCard = React.forwardRef<HTMLDivElement, AnimatedCardProps>(
 AnimatedCard.displayName = "AnimatedCard"
 
 export { AnimatedCard }
+

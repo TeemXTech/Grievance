@@ -1,104 +1,94 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
+import { getAuthUser, hasRole } from "@/lib/auth-middleware"
+import { sanitizeInput } from "@/lib/input-sanitizer"
 
-// Mock calendar data - in real app this would be in database
-let calendarEvents = [
-  { 
-    id: 1, 
-    title: "Village Meeting", 
-    date: "2025-01-10", 
-    time: "10:00", 
-    endTime: "12:00",
-    location: "Manthanani Community Hall", 
-    bookedBy: "PA Srinivas", 
-    paId: "pa1",
-    type: "meeting",
-    status: "confirmed",
-    description: "Monthly village development meeting"
-  },
-  { 
-    id: 2, 
-    title: "Project Review", 
-    date: "2025-01-12", 
-    time: "14:00", 
-    endTime: "16:00",
-    location: "District Office", 
-    bookedBy: "PA Ramesh", 
-    paId: "pa2",
-    type: "review",
-    status: "confirmed",
-    description: "Infrastructure project progress review"
-  }
-]
-
-// Helper function to check time conflicts
-function hasTimeConflict(newEvent: any, existingEvents: any[]) {
-  const newStart = new Date(`${newEvent.date}T${newEvent.time}:00`)
-  const newEnd = new Date(`${newEvent.date}T${newEvent.endTime}:00`)
-  
-  return existingEvents.some(event => {
-    if (event.date !== newEvent.date) return false
-    
-    const existingStart = new Date(`${event.date}T${event.time}:00`)
-    const existingEnd = new Date(`${event.date}T${event.endTime}:00`)
-    
-    return (newStart < existingEnd && newEnd > existingStart)
-  })
-}
+const READ_ROLES  = ["MINISTER", "PA", "ADMIN", "BACK_OFFICER"]
+const WRITE_ROLES = ["PA", "ADMIN"]
 
 export async function GET(request: NextRequest) {
-  try {
-    return NextResponse.json({
-      success: true,
-      events: calendarEvents
-    })
-  } catch (error) {
-    return NextResponse.json({
-      success: false,
-      error: 'Failed to fetch calendar events'
-    }, { status: 500 })
+  const user = await getAuthUser()
+  if (!user) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
+  if (!READ_ROLES.includes(user.role))
+    return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 })
+
+  const { searchParams } = new URL(request.url)
+  const date  = searchParams.get("date")   // YYYY-MM-DD — filter single day
+  const month = searchParams.get("month")  // YYYY-MM — filter whole month
+  const type  = searchParams.get("type")
+
+  const where: any = {}
+  if (type) where.eventType = type
+
+  if (date) {
+    const start = new Date(date); start.setHours(0, 0, 0, 0)
+    const end   = new Date(date); end.setHours(23, 59, 59, 999)
+    where.startDate = { gte: start, lte: end }
+  } else if (month) {
+    const [y, m] = month.split("-").map(Number)
+    const start  = new Date(y, m - 1, 1)
+    const end    = new Date(y, m, 0, 23, 59, 59, 999)
+    where.startDate = { gte: start, lte: end }
   }
+
+  const canSeePrivate = hasRole(user, "MINISTER", "PA", "ADMIN")
+
+  const events = await prisma.tourAppointment.findMany({
+    where,
+    orderBy: { startDate: "asc" },
+  })
+
+  const result = canSeePrivate ? events : events.map(({ privateNotes, ...e }) => e)
+  return NextResponse.json({ success: true, events: result })
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json()
-    const { title, date, time, endTime, location, type, description, paId, bookedBy } = body
-    
-    // Check for time conflicts
-    if (hasTimeConflict({ date, time, endTime }, calendarEvents)) {
-      return NextResponse.json({
-        success: false,
-        error: 'Time slot already booked. Please choose a different time.'
-      }, { status: 409 })
-    }
-    
-    // Create new event
-    const newEvent = {
-      id: calendarEvents.length + 1,
-      title,
-      date,
-      time,
-      endTime,
-      location,
-      type: type || 'meeting',
-      description: description || '',
-      paId,
-      bookedBy,
-      status: 'confirmed',
-      createdAt: new Date().toISOString()
-    }
-    
-    calendarEvents.push(newEvent)
-    
-    return NextResponse.json({
-      success: true,
-      message: 'Event booked successfully',
-      event: newEvent
+  const user = await getAuthUser()
+  if (!user) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
+  if (!WRITE_ROLES.includes(user.role))
+    return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 })
+
+  const body = await request.json()
+  const { title, description, eventType = "VILLAGE_TOUR", startDate, endDate, location, mandalName, villageName, linkedLeaderName, vipGuests, notes, privateNotes } = body
+
+  if (!title?.trim())     return NextResponse.json({ success: false, error: "Title is required" }, { status: 400 })
+  if (!startDate)         return NextResponse.json({ success: false, error: "startDate is required" }, { status: 400 })
+  if (!location?.trim())  return NextResponse.json({ success: false, error: "Location is required" }, { status: 400 })
+
+  const start = new Date(startDate)
+  const end   = endDate ? new Date(endDate) : null
+
+  // Conflict detection: check for overlapping events on same day
+  if (end) {
+    const conflict = await prisma.tourAppointment.findFirst({
+      where: {
+        status: { not: "CANCELLED" },
+        startDate: { lt: end },
+        endDate:   { gt: start },
+      },
     })
-  } catch (error) {
-    return NextResponse.json({
-      success: false,
-      error: 'Failed to create calendar event'
-    }, { status: 500 })
+    if (conflict)
+      return NextResponse.json({ success: false, error: `Time conflict with existing event: "${conflict.title}"` }, { status: 409 })
   }
+
+  const event = await prisma.tourAppointment.create({
+    data: {
+      title:            sanitizeInput(title),
+      description:      description       ? sanitizeInput(description)       : null,
+      eventType,
+      startDate:        start,
+      endDate:          end,
+      location:         sanitizeInput(location),
+      mandalName:       mandalName        ? sanitizeInput(mandalName)        : null,
+      villageName:      villageName       ? sanitizeInput(villageName)       : null,
+      linkedLeaderName: linkedLeaderName  ? sanitizeInput(linkedLeaderName)  : null,
+      vipGuests:        vipGuests         ? sanitizeInput(vipGuests)         : null,
+      notes:            notes             ? sanitizeInput(notes)             : null,
+      privateNotes:     hasRole(user, "MINISTER", "PA", "ADMIN") && privateNotes ? sanitizeInput(privateNotes) : null,
+      status:           "SCHEDULED",
+      createdById:      user.id,
+    },
+  })
+
+  return NextResponse.json({ success: true, event }, { status: 201 })
 }

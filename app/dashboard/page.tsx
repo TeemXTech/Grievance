@@ -1,4 +1,5 @@
-"use client";
+"use client"
+
 import { Textarea } from "@/components/ui/textarea"
 
 import { useState } from "react";
@@ -83,7 +84,7 @@ const translations = {
 };
 
 
-const ProdjectDialog = ({ item, children }) => {
+const ProdjectDialog = ({ item, children }: { item: any; children: React.ReactNode }) => {
 
 
   const getStatusColor = (status: string) => {
@@ -207,12 +208,12 @@ const ProdjectDialog = ({ item, children }) => {
 }
 
 export default function DashboardPage() {
-  const [language, setLanguage] = useState("en");
+  const [language, setLanguage] = useState<"en" | "te">("en");
   const [showFilteredList, setShowFilteredList] = useState(false);
   const [dataType, setDataType] = useState("grievances");
   const [selectedDistrict, setSelectedDistrict] = useState<string | null>(null);
   const [selectedConstituency, setSelectedConstituency] = useState<string | null>(null);
-  const [assignments, setAssignments] = useState({});
+  const [assignments, setAssignments] = useState<Record<number, string>>({});
 
   const t = translations[language];
 
@@ -284,8 +285,8 @@ export default function DashboardPage() {
     { name: "Warangal", constituencies: ["Warangal East", "Warangal West", "Wardhanapet"] },
   ];
 
-  const getFilteredData = () => {
-    let data = dataType === "grievances" ? mockGrievances : mockProjects;
+  const getFilteredData = (): any[] => {
+    let data: any[] = dataType === "grievances" ? mockGrievances : mockProjects;
 
     if (selectedDistrict) {
       data = data.filter((item) => item.district === selectedDistrict);
@@ -324,13 +325,13 @@ export default function DashboardPage() {
   const filteredCount = getFilteredData().length;
 
   // Get recent items (last 3 from mockGrievances or mockProjects)
-  const recentItems = (dataType === "grievances" ? mockGrievances : mockProjects)
+  const recentItems: any[] = (dataType === "grievances" ? mockGrievances : mockProjects)
     .slice(-6)
-    .sort((a, b) => new Date(b.createdOn || b.startedOn).getTime() - new Date(a.createdOn || a.startedOn).getTime());
+    .sort((a: any, b: any) => new Date(b.createdOn || b.startedOn).getTime() - new Date(a.createdOn || a.startedOn).getTime());
 
   // Calculate category distribution dynamically
-  const data = dataType === "grievances" ? mockGrievances : mockProjects;
-  const categoryCounts = data.reduce((acc, item) => {
+  const data: any[] = dataType === "grievances" ? mockGrievances : mockProjects;
+  const categoryCounts = data.reduce((acc: Record<string, number>, item: any) => {
     const category = item.category || "Others";
     acc[category] = (acc[category] || 0) + 1;
     return acc;
@@ -340,7 +341,7 @@ export default function DashboardPage() {
   const categoryStats = Object.entries(categoryCounts).map(([name, count]) => ({
     name,
     count,
-    percentage: totalItems > 0 ? ((count / totalItems) * 100).toFixed(1) : 0,
+    percentage: totalItems > 0 ? Number(((count / totalItems) * 100).toFixed(1)) : 0,
   }));
 
   const columns = dataType === "grievances" ? grievanceColumns : projectColumns;
@@ -356,7 +357,7 @@ export default function DashboardPage() {
             <p className="text-sm lg:text-base text-gray-600 truncate">Manthanani Constituency Management</p>
           </div>
           <div className="mt-4 sm:mt-0">
-            <Select value={language} onValueChange={setLanguage}>
+            <Select value={language} onValueChange={(v) => setLanguage(v as "en" | "te")}>
               <SelectTrigger className="w-28 lg:w-32">
                 <Languages className="w-4 h-4 mr-2" />
                 <SelectValue />
@@ -744,3 +745,8 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+
+
+
+

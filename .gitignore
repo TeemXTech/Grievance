@@ -25,6 +25,9 @@ local_pgdata/
 logs
 *.log
 
+# Uploaded files (local dev only — use S3 in production)
+public/uploads/
+
 # Runtime data
 pids
 *.pid
@@ -110,3 +113,30 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Zip archives
+*.zip
+
+# IDE / AI tool folders
+.amazonq/
+.lh/
+
+# Legacy v0 prototype folders (not part of production app)
+v0-new/
+v0-project/
+
+# Build output logs
+build-out.txt
+dev-log.txt
+
+# One-off debug/test scripts in root
+test-auth-api.js
+test-auth.js
+test-db.js
+test-login-debug.js
+test-login.js
+test-server.js
+quick-start.js
+simple-seed.js
+verify-db-passwords.js
+seed-data.sql

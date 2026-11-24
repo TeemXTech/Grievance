@@ -89,9 +89,9 @@ export default function InteractiveMap() {
         // Create GeoJSON layer
         window.L.geoJSON(geojsonData, {
           style: style,
-          onEachFeature: (feature, layer) => {
+          onEachFeature: (feature: any, layer: any) => {
             layer.on({
-              mouseover: (e) => {
+              mouseover: (e: any) => {
                 const layer = e.target;
                 layer.setStyle({
                   weight: 4,
@@ -101,11 +101,11 @@ export default function InteractiveMap() {
                 });
                 layer.bringToFront();
               },
-              mouseout: (e) => {
+              mouseout: (e: any) => {
                 const layer = e.target;
                 layer.setStyle(style(feature));
               },
-              click: (e) => {
+              click: (e: any) => {
                 setMapState(prev => ({
                   ...prev,
                   selectedDistrict: feature.properties
@@ -205,14 +205,14 @@ export default function InteractiveMap() {
           })
 
           // Hover effects
-          layer.on('mouseover', function() {
+          layer.on('mouseover', function(this: any) {
             this.setStyle({
               fillOpacity: 0.8,
               weight: 3
             })
           })
 
-          layer.on('mouseout', function() {
+          layer.on('mouseout', function(this: any) {
             this.setStyle(style(feature))
           })
         }

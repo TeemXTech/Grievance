@@ -1,91 +1,85 @@
 import { NextRequest, NextResponse } from "next/server"
-import { PrismaClient, Priority, GrievanceStatus } from "@prisma/client"
+import { prisma } from "@/lib/prisma"
+import { getAuthUser, hasRole } from "@/lib/auth-middleware"
+import { sanitizeInput } from "@/lib/input-sanitizer"
+import { createAuditLog } from "@/lib/audit-log"
+import { Priority, GrievanceStatus } from "@prisma/client"
 import { z } from "zod"
 
-const prisma = new PrismaClient()
+const APPROVE_ROLES = ["PA", "ADMIN", "BACK_OFFICER"]
 
 const approveMessageSchema = z.object({
-  type: z.string().default("OTHER"),
-  title: z.string().min(5).max(200),
-  description: z.string().min(10).max(2000),
-  requester_name: z.string().min(2).max(100),
-  requester_phone: z.string().regex(/^\+?[0-9]{10,15}$/),
+  title:             z.string().min(5).max(200),
+  description:       z.string().min(10).max(2000),
+  requester_name:    z.string().min(2).max(100),
+  requester_phone:   z.string().regex(/^\+?[0-9]{10,15}$/),
   requester_address: z.string().max(500).optional(),
-  priority: z.nativeEnum(Priority).default(Priority.MEDIUM),
-  status: z.nativeEnum(GrievanceStatus).default(GrievanceStatus.PENDING)
+  priority:          z.nativeEnum(Priority).default(Priority.MEDIUM),
+  status:            z.nativeEnum(GrievanceStatus).default(GrievanceStatus.PENDING),
 })
 
-// Generate unique reference number
 async function generateReferenceNumber(): Promise<string> {
-  const year = new Date().getFullYear()
-  const count = await prisma.grievance.count({
-    where: {
-      referenceNumber: {
-        startsWith: `GRV-${year}-`
-      }
-    }
+  const year   = new Date().getFullYear()
+  const prefix = `GRV-${year}-`
+  const last   = await prisma.grievance.findFirst({
+    where:   { referenceNumber: { startsWith: prefix } },
+    orderBy: { referenceNumber: "desc" },
   })
-  const sequence = (count + 1).toString().padStart(4, '0')
-  return `GRV-${year}-${sequence}`
+  const seq = last ? parseInt(last.referenceNumber.split("-").pop()!, 10) + 1 : 1
+  return `${prefix}${String(seq).padStart(4, "0")}`
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const body = await request.json()
-    const validatedData = approveMessageSchema.parse(body)
-    
-    // Generate reference number
-    const referenceNumber = await generateReferenceNumber()
-    
-    // Create grievance from WhatsApp message
-    const grievance = await prisma.grievance.create({
-      data: {
-        referenceNumber,
-        title: validatedData.title,
-        description: validatedData.description,
-        priority: validatedData.priority,
-        status: validatedData.status,
-        requesterName: validatedData.requester_name,
-        requesterPhone: validatedData.requester_phone,
-        requesterAddress: validatedData.requester_address,
-        state: "Telangana"
-      },
-      include: {
-        category: true,
-        assignedTo: true,
-      }
-    })
+export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+  const user = await getAuthUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!hasRole(user, ...APPROVE_ROLES))
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-    // Create status update
-    await prisma.grievanceStatusUpdate.create({
-      data: {
-        grievanceId: grievance.id,
-        userId: 'system', // You might want to get actual user ID from session
-        oldStatus: null,
-        newStatus: GrievanceStatus.PENDING,
-        remarks: `Created from WhatsApp message ID: ${params.id}`
-      }
-    })
+  const body = await req.json()
+  const parsed = approveMessageSchema.safeParse(body)
+  if (!parsed.success)
+    return NextResponse.json({ error: "Validation failed", details: parsed.error.errors }, { status: 400 })
 
-    return NextResponse.json({
-      success: true,
-      grievance: grievance
-    })
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "Validation failed", details: error.errors },
-        { status: 400 }
-      )
-    }
-    
-    console.error("Error approving WhatsApp message:", error)
-    return NextResponse.json(
-      { error: "Failed to approve WhatsApp message" },
-      { status: 500 }
-    )
-  }
+  const data = parsed.data
+
+  const referenceNumber = await generateReferenceNumber()
+
+  const grievance = await prisma.grievance.create({
+    data: {
+      referenceNumber,
+      title:            sanitizeInput(data.title),
+      description:      sanitizeInput(data.description),
+      priority:         data.priority,
+      status:           data.status,
+      requesterName:    sanitizeInput(data.requester_name),
+      requesterPhone:   sanitizeInput(data.requester_phone),
+      requesterAddress: data.requester_address ? sanitizeInput(data.requester_address) : null,
+      state:            "Telangana",
+      intakeMethod:     "WHATSAPP",
+    },
+    include: { category: true, assignedTo: true },
+  })
+
+  await prisma.grievanceStatusUpdate.create({
+    data: {
+      grievanceId: grievance.id,
+      userId:      user.id,
+      oldStatus:   null,
+      newStatus:   GrievanceStatus.PENDING,
+      remarks:     `Approved from WhatsApp message ID: ${params.id}`,
+    },
+  })
+
+  // Mark the source WhatsApp message as processed
+  await prisma.whatsAppMessage.updateMany({
+    where: { id: params.id },
+    data:  { isProcessed: true, processedAt: new Date(), grievanceId: grievance.id },
+  })
+
+  await createAuditLog({
+    action: "CREATE", entityType: "GRIEVANCE", entityId: grievance.id,
+    userId: user.id, newValues: { referenceNumber, fromWhatsApp: params.id },
+  })
+
+  return NextResponse.json({ success: true, grievance })
 }

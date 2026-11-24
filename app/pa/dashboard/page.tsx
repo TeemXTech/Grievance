@@ -6,8 +6,9 @@ import {
   LayoutDashboard, FileText, Calendar, Settings, Bell, RefreshCw,
   ChevronDown, AlertTriangle, CheckCircle2, Clock, Plus, Search,
   X, Send, Lock, HeartPulse, ArrowRightLeft, Briefcase, Layers,
-  ChevronRight, History, Sparkles, Phone, MapPin, User, Building,
+  ChevronRight, History, Sparkles, Phone, MapPin, User, Building, Users, Mail,
 } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { GovSidebar, type NavItem } from "@/components/GovSidebar"
 
 interface Petition {
@@ -33,6 +34,8 @@ interface Metadata {
 const NAV: NavItem[] = [
   { key: "petitions",  label: "All Petitions",  Icon: FileText },
   { key: "new",        label: "New Petition",    Icon: Plus },
+  { key: "visitors",   label: "Visitors",        Icon: Users },
+  { key: "letters",    label: "Letters",         Icon: Mail },
   { key: "calendar",   label: "Calendar",        Icon: Calendar },
   { key: "settings",   label: "Settings",        Icon: Settings },
 ]
@@ -53,6 +56,7 @@ function Badge({ label, color, bg }: { label: string; color: string; bg: string 
 
 export default function PADashboard() {
   const { data: session } = useSession()
+  const router = useRouter()
   const paName = (session?.user as any)?.name || "PA"
   const initials = paName.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()
 
@@ -137,14 +141,18 @@ export default function PADashboard() {
 
   return (
     <div className="gov-app">
-      <GovSidebar items={NAV} active={activeNav} onNav={setActiveNav} role="PA" userName={paName} />
+      <GovSidebar items={NAV} active={activeNav} onNav={(key) => {
+        if (key === "visitors") { router.push("/visitors/dashboard"); return }
+        if (key === "letters")  { router.push("/letters/dashboard");  return }
+        setActiveNav(key)
+      }} role="PA" userName={paName} />
 
       <div className="gov-main">
         {/* Header */}
         <header className="gov-header">
           <div>
             <div className="gov-header-title">PA Command Center</div>
-            <div className="gov-header-sub">Personal Assistant · D. Sridhar Babu · {todayStr}</div>
+            <div className="gov-header-sub">Personal Assistant · {paName} · {todayStr}</div>
           </div>
           <div className="gov-header-actions">
             <button onClick={fetchPetitions} className="gov-header-btn"><RefreshCw size={15} /></button>

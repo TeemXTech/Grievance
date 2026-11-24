@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import { PrismaClient, GrievanceStatus } from "@prisma/client"
+import { prisma } from "@/lib/prisma"
+import { getAuthUser } from "@/lib/auth-middleware"
+import { GrievanceStatus } from "@prisma/client"
 import { z } from "zod"
-
-const prisma = new PrismaClient()
 
 // Status update validation schema
 const statusUpdateSchema = z.object({
@@ -13,15 +13,16 @@ const statusUpdateSchema = z.object({
   actualResolutionDate: z.string().datetime().optional(),
 })
 
-// Status transition rules
+// Status transition rules — WIP added to satisfy Record<GrievanceStatus, ...>
 const STATUS_TRANSITIONS: Record<GrievanceStatus, GrievanceStatus[]> = {
   [GrievanceStatus.PENDING]: [GrievanceStatus.ASSIGNED, GrievanceStatus.REJECTED],
   [GrievanceStatus.ASSIGNED]: [GrievanceStatus.IN_PROGRESS, GrievanceStatus.REJECTED],
   [GrievanceStatus.IN_PROGRESS]: [GrievanceStatus.UNDER_REVIEW, GrievanceStatus.REJECTED],
   [GrievanceStatus.UNDER_REVIEW]: [GrievanceStatus.RESOLVED, GrievanceStatus.IN_PROGRESS, GrievanceStatus.REJECTED],
   [GrievanceStatus.RESOLVED]: [GrievanceStatus.CLOSED, GrievanceStatus.IN_PROGRESS],
-  [GrievanceStatus.CLOSED]: [], // Terminal state
-  [GrievanceStatus.REJECTED]: [GrievanceStatus.PENDING], // Can be reopened
+  [GrievanceStatus.CLOSED]: [],
+  [GrievanceStatus.REJECTED]: [GrievanceStatus.PENDING],
+  [GrievanceStatus.WIP]: [GrievanceStatus.IN_PROGRESS, GrievanceStatus.RESOLVED, GrievanceStatus.REJECTED],
 }
 
 // Create status update entry
@@ -72,6 +73,9 @@ async function createAuditLog(
 }
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+  const user = await getAuthUser(req)
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   try {
     const body = await req.json()
     const ipAddress = req.headers.get('x-forwarded-for') || req.ip
@@ -127,22 +131,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     // Create status update record
     const statusUpdate = await createStatusUpdate(
       params.id,
-      'system', // You might want to get actual user ID from session
+      user.id,
       currentGrievance.status,
       validatedData.newStatus,
       validatedData.remarks
     )
 
-    // Create audit log
     await createAuditLog(
-      'STATUS_CHANGE',
-      'GRIEVANCE',
-      params.id,
-      'system', // You might want to get actual user ID from session
-      currentGrievance,
-      updatedGrievance,
-      ipAddress,
-      userAgent
+      'STATUS_CHANGE', 'GRIEVANCE', params.id, user.id,
+      { status: currentGrievance.status },
+      { status: validatedData.newStatus },
+      ipAddress ?? undefined,
+      userAgent ?? undefined
     )
 
     return NextResponse.json({

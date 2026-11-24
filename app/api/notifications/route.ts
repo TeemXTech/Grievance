@@ -1,111 +1,78 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withAuth } from '@/lib/auth-middleware'
-import {
-  getUserNotifications,
-  markNotificationAsRead,
-  markAllNotificationsAsRead,
-  deleteNotification,
-} from '@/lib/notifications'
-import { z } from 'zod'
+import { getAuthUser } from '@/lib/auth-middleware'
+import { prisma } from '@/lib/prisma'
 
-const paginationSchema = z.object({
-  page: z.coerce.number().optional(),
-  pageSize: z.coerce.number().optional(),
-})
-
-// GET /api/notifications - Get user's notifications
 export async function GET(request: NextRequest) {
-  return withAuth(request, async (req: NextRequest) => {
-    try {
-      const userId = req.headers.get('x-user-id')!
-      const url = new URL(req.url)
-      const params = Object.fromEntries(url.searchParams)
-      const { page, pageSize } = paginationSchema.parse(params)
+  const user = await getAuthUser(request)
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-      const notifications = await getUserNotifications(
-        userId,
-        page,
-        pageSize
-      )
+  try {
+    const { searchParams } = new URL(request.url)
+    const page = parseInt(searchParams.get('page') || '1')
+    const pageSize = parseInt(searchParams.get('pageSize') || '20')
 
-      return NextResponse.json(notifications)
-    } catch (error) {
-      console.error('Get notifications error:', error)
-      return NextResponse.json(
-        { error: 'Failed to get notifications' },
-        { status: 500 }
-      )
-    }
-  })
+    const [notifications, total] = await Promise.all([
+      prisma.notification.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.notification.count({ where: { userId: user.id } }),
+    ])
+
+    return NextResponse.json({ notifications, total, page, pageSize })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
 }
 
-// PATCH /api/notifications/:id - Mark notification as read
 export async function PATCH(request: NextRequest) {
-  return withAuth(request, async (req: NextRequest) => {
-    try {
-      const userId = req.headers.get('x-user-id')!
-      const id = req.url.split('/').pop()
+  const user = await getAuthUser(request)
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-      if (!id) {
-        return NextResponse.json(
-          { error: 'Notification ID is required' },
-          { status: 400 }
-        )
-      }
+  try {
+    const { id } = await request.json()
+    if (!id) return NextResponse.json({ error: 'Notification ID required' }, { status: 400 })
 
-      await markNotificationAsRead(userId, id)
+    await prisma.notification.updateMany({
+      where: { id, userId: user.id },
+      data: { isRead: true },
+    })
 
-      return NextResponse.json({ success: true })
-    } catch (error) {
-      console.error('Mark notification read error:', error)
-      return NextResponse.json(
-        { error: 'Failed to mark notification as read' },
-        { status: 500 }
-      )
-    }
-  })
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
 }
 
-// POST /api/notifications/mark-all-read - Mark all notifications as read
 export async function POST(request: NextRequest) {
-  return withAuth(request, async (req: NextRequest) => {
-    try {
-      const userId = req.headers.get('x-user-id')!
-      await markAllNotificationsAsRead(userId)
-      return NextResponse.json({ success: true })
-    } catch (error) {
-      console.error('Mark all notifications read error:', error)
-      return NextResponse.json(
-        { error: 'Failed to mark notifications as read' },
-        { status: 500 }
-      )
-    }
-  })
+  const user = await getAuthUser(request)
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  try {
+    await prisma.notification.updateMany({
+      where: { userId: user.id, isRead: false },
+      data: { isRead: true },
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
 }
 
-// DELETE /api/notifications/:id - Delete notification
 export async function DELETE(request: NextRequest) {
-  return withAuth(request, async (req: NextRequest) => {
-    try {
-      const userId = req.headers.get('x-user-id')!
-      const id = req.url.split('/').pop()
+  const user = await getAuthUser(request)
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-      if (!id) {
-        return NextResponse.json(
-          { error: 'Notification ID is required' },
-          { status: 400 }
-        )
-      }
+  try {
+    const { id } = await request.json()
+    if (!id) return NextResponse.json({ error: 'Notification ID required' }, { status: 400 })
 
-      await deleteNotification(userId, id)
-
-      return NextResponse.json({ success: true })
-    } catch (error) {
-      console.error('Delete notification error:', error)
-      return NextResponse.json(
-        { error: 'Failed to delete notification' },
-        { status: 500 }
-      )
-    }
-  })
+    await prisma.notification.deleteMany({ where: { id, userId: user.id } })
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
 }

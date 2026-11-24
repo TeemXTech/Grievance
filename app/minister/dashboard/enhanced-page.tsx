@@ -120,7 +120,6 @@ export default function EnhancedMinisterDashboard() {
     <div className="min-h-screen bg-gray-50">
       <GovernmentHeader
         title="Minister Dashboard - Enhanced"
-        description="Real-World Field Operations Interface"
         userName={session?.user?.name}
         userRole={session?.user?.role}
       />

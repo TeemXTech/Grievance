@@ -1,35 +1,32 @@
 import { NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
 
 export async function GET() {
-  try {
-    // Check Ollama connection
-    let ollamaStatus = 'disconnected'
+  // Check Gemini
+  let geminiStatus = 'unconfigured'
+  if (process.env.GEMINI_API_KEY) {
     try {
-      const response = await fetch('http://localhost:11434/api/tags', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
-      })
-      ollamaStatus = response.ok ? 'connected' : 'error'
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`,
+        { method: 'GET' }
+      )
+      geminiStatus = res.ok ? 'connected' : 'error'
     } catch {
-      ollamaStatus = 'disconnected'
+      geminiStatus = 'unreachable'
     }
-
-    // Check database connection (mock for now)
-    const dbStatus = 'connected'
-
-    return NextResponse.json({
-      status: 'healthy',
-      services: {
-        ollama: ollamaStatus,
-        database: dbStatus
-      },
-      timestamp: new Date().toISOString()
-    })
-
-  } catch (error) {
-    return NextResponse.json({
-      status: 'error',
-      error: 'Health check failed'
-    }, { status: 500 })
   }
+
+  // Check DB
+  let dbStatus = 'connected'
+  try {
+    await prisma.$queryRaw`SELECT 1`
+  } catch {
+    dbStatus = 'disconnected'
+  }
+
+  return NextResponse.json({
+    status: geminiStatus === 'connected' && dbStatus === 'connected' ? 'healthy' : 'degraded',
+    services: { gemini: geminiStatus, database: dbStatus },
+    timestamp: new Date().toISOString(),
+  })
 }

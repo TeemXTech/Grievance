@@ -1,9 +1,15 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getAuthUser, hasRole } from '@/lib/auth-middleware'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const user = await getAuthUser(req)
+  if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+  if (!hasRole(user, 'MINISTER', 'PA', 'ADMIN', 'BACK_OFFICER')) {
+    return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+  }
   try {
-    const [leaders, mandals, villages, officials, pas] = await Promise.all([
+    const [leaders, mandals, villages, officials, pas, offices, partyPosts, users] = await Promise.all([
       prisma.localLeader.findMany({
         where: { isActive: true },
         select: {
@@ -33,6 +39,24 @@ export async function GET() {
         where: { role: 'PA' },
         select: { id: true, name: true, email: true, phone: true },
       }),
+      // New: offices for task routing
+      prisma.office.findMany({
+        where: { isActive: true },
+        select: { id: true, name: true, officeType: true, city: true, isDefault: true },
+        orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
+      }),
+      // New: party posts for worker assignment
+      prisma.partyPost.findMany({
+        where: { isActive: true },
+        select: { id: true, title: true, wing: true, level: true },
+        orderBy: [{ level: 'asc' }, { title: 'asc' }],
+      }),
+      // New: all staff users for task assignment
+      prisma.user.findMany({
+        where: { status: 'active', role: { in: ['PA', 'BACK_OFFICER', 'FIELD_OFFICER', 'ADMIN'] } },
+        select: { id: true, name: true, role: true, phone: true },
+        orderBy: { name: 'asc' },
+      }),
     ])
 
     return NextResponse.json({
@@ -42,6 +66,9 @@ export async function GET() {
       villages,
       officials,
       pas,
+      offices,
+      partyPosts,
+      staffUsers: users,
       departments: [
         'Revenue / Tahsildar (MRO)',
         'Health & Medical Services (DMHO)',
@@ -56,6 +83,9 @@ export async function GET() {
         'Social Welfare / BC / SC / ST Corporation',
         'Chief Minister Relief Fund (CMRF Cell)',
         'Municipal Administration / Commissioner',
+        'Irrigation Department',
+        'Forest Department',
+        'Agriculture Department',
       ],
     })
   } catch (error: any) {

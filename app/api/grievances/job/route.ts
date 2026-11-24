@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
-import { PrismaClient } from "@prisma/client"
-import { getServerSession } from "next-auth"
-import { authOptions } from "../../auth/[...nextauth]/route"
-
-const prisma = new PrismaClient()
+import { prisma } from "@/lib/prisma"
+import { getAuthUser } from "@/lib/auth-middleware"
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
+    const user = await getAuthUser(request)
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -17,7 +14,7 @@ export async function POST(request: NextRequest) {
     const jobRequest = await prisma.jobRequest.create({
       data: {
         ...data,
-        createdBy: session.user.id
+        createdBy: user.id
       }
     })
 

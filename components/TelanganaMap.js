@@ -1,163 +1,178 @@
 "use client";
-import { useEffect, useRef } from "react";
-import 'leaflet/dist/leaflet.css';
+import { useEffect, useRef, useState } from "react";
 
 export default function TelanganaMap({ onDistrictClick }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
+  const [districtInfo, setDistrictInfo] = useState(null);
+  const [loadingInfo, setLoadingInfo] = useState(false);
 
   useEffect(() => {
-    if (mapInstanceRef.current) return;
-
     const initMap = async () => {
-      if (typeof window === 'undefined') return;
-      
-      const L = (await import('leaflet')).default;
-      
-      delete L.Icon.Default.prototype._getIconUrl;
-      L.Icon.Default.mergeOptions({
-        iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-      });
-      
-      if (!mapRef.current) return;
-      
-      const map = L.map(mapRef.current).setView([17.9784, 79.5941], 7);
+      if (typeof window === "undefined" || !mapRef.current) return;
+
+      const L = (await import("leaflet")).default;
+      await import("leaflet/dist/leaflet.css").catch(() => {});
+      // leaflet css loaded via dynamic import
+
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+
+      const map = L.map(mapRef.current, {
+        preferCanvas: false,
+        minZoom: 6,
+        maxZoom: 12,
+        maxBounds: [[15.0, 76.5], [20.0, 81.5]],
+        maxBoundsViscosity: 1.0,
+      }).setView([17.5, 79.0], 7);
       mapInstanceRef.current = map;
 
-      // Add free OpenStreetMap layer
+      // Force size recalculation after mount
+      setTimeout(() => map.invalidateSize(), 200);
+
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 18,
-        attribution: "© OpenStreetMap contributors"
+        maxZoom: 12,
+        attribution: "© OpenStreetMap",
       }).addTo(map);
 
-      // Load Telangana boundaries
       fetch("/geojson/telangana.geojson")
-        .then((res) => res.json())
+        .then((r) => r.json())
         .then((geoData) => {
-          L.geoJSON(geoData, {
+          if (!mapInstanceRef.current) return;
+
+          const geoLayer = L.geoJSON(geoData, {
             style: {
-              color: "#2563eb",
-              weight: 2,
-              fillColor: "#dbeafe",
-              fillOpacity: 0.6
+              color: "#1d4ed8",
+              weight: 1.5,
+              fillColor: "#bfdbfe",
+              fillOpacity: 0.5,
             },
             onEachFeature: (feature, layer) => {
-              const districtName = feature.properties.NAME_1;
-              
-              layer.on("click", async () => {
-                // Zoom to district
-                map.fitBounds(layer.getBounds());
-                
-                // Highlight selected district
-                layer.setStyle({ 
-                  fillColor: "#3b82f6", 
-                  fillOpacity: 0.8 
-                });
-                
-                // Reset other districts
-                map.eachLayer((l) => {
-                  if (l.feature && l !== layer) {
-                    l.setStyle({ 
-                      fillColor: "#dbeafe", 
-                      fillOpacity: 0.6 
-                    });
-                  }
-                });
+              const name = feature.properties.NAME_1;
 
-                let popupContent = `<b>${districtName}</b><br>Loading data...`;
-                layer.bindPopup(popupContent).openPopup();
+              // Show district name as permanent tooltip
+              layer.bindTooltip(name, {
+                permanent: true,
+                direction: "center",
+                className: "district-label",
+              });
+
+              layer.on("click", async () => {
+                if (!mapInstanceRef.current) return;
+
+                // Highlight clicked
+                geoLayer.resetStyle();
+                layer.setStyle({ fillColor: "#3b82f6", fillOpacity: 0.8, weight: 2.5 });
+
+                setDistrictInfo({ name, loading: true, petitions: null, works: null });
+                setLoadingInfo(true);
 
                 try {
-                  const res = await fetch(
-                    `/api/district-data?name=${encodeURIComponent(districtName)}`
-                  );
+                  const res = await fetch(`/api/district-data?name=${encodeURIComponent(name)}`);
                   if (res.ok) {
                     const data = await res.json();
-                    popupContent = `
-                      <div style="font-family: system-ui; padding: 8px;">
-                        <h3 style="margin: 0 0 8px 0; color: #1f2937;">${districtName}</h3>
-                        <div style="display: flex; gap: 16px;">
-                          <div>
-                            <div style="color: #3b82f6; font-weight: 600;">Projects: ${data.projects}</div>
-                            <div style="color: #ef4444; font-weight: 600;">Grievances: ${data.grievances}</div>
-                          </div>
-                          <div>
-                            <div style="color: #10b981; font-size: 12px;">Completed: ${data.completed || 0}</div>
-                            <div style="color: #f59e0b; font-size: 12px;">Pending: ${data.pending || 0}</div>
-                          </div>
-                        </div>
-                      </div>
-                    `;
+                    setDistrictInfo({
+                      name,
+                      loading: false,
+                      petitions: data.grievances ?? 0,
+                      works: data.projects ?? 0,
+                      pending: data.pending ?? 0,
+                      completed: data.completed ?? 0,
+                    });
                   } else {
-                    popupContent = `
-                      <div style="font-family: system-ui; padding: 8px;">
-                        <h3 style="margin: 0 0 8px 0; color: #1f2937;">${districtName}</h3>
-                        <div style="color: #6b7280;">No data available</div>
-                      </div>
-                    `;
+                    setDistrictInfo({ name, loading: false, petitions: 0, works: 0, pending: 0, completed: 0 });
                   }
                 } catch {
-                  popupContent = `
-                    <div style="font-family: system-ui; padding: 8px;">
-                      <h3 style="margin: 0 0 8px 0; color: #1f2937;">${districtName}</h3>
-                      <div style="color: #ef4444;">Error loading data</div>
-                    </div>
-                  `;
+                  setDistrictInfo({ name, loading: false, petitions: 0, works: 0, pending: 0, completed: 0 });
+                } finally {
+                  setLoadingInfo(false);
                 }
 
-                layer.bindPopup(popupContent).openPopup();
-                
-                // Callback to parent component
-                if (onDistrictClick) {
-                  onDistrictClick(districtName);
-                }
+                if (onDistrictClick) onDistrictClick(name);
               });
 
-              // Hover effects
               layer.on("mouseover", () => {
-                layer.setStyle({ 
-                  weight: 3,
-                  fillOpacity: 0.8 
-                });
+                if (layer.options.fillColor !== "#3b82f6") {
+                  layer.setStyle({ fillColor: "#93c5fd", fillOpacity: 0.7, weight: 2 });
+                }
               });
-
               layer.on("mouseout", () => {
-                layer.setStyle({ 
-                  weight: 2,
-                  fillOpacity: 0.6 
-                });
+                if (layer.options.fillColor !== "#3b82f6") {
+                  layer.setStyle({ fillColor: "#bfdbfe", fillOpacity: 0.5, weight: 1.5 });
+                }
               });
-            }
+            },
           }).addTo(map);
-        })
-        .catch((error) => {
-          console.error("Error loading GeoJSON:", error);
-        });
-    };
-    
-    setTimeout(initMap, 100);
 
-    // Cleanup function
+          map.fitBounds(geoLayer.getBounds(), { padding: [10, 10] });
+        })
+        .catch((err) => console.error("GeoJSON error:", err));
+    };
+
+    initMap();
+
     return () => {
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
       }
     };
-  }, [onDistrictClick]);
+  }, []);
 
   return (
-    <div 
-      ref={mapRef} 
-      style={{ 
-        height: "500px", 
-        width: "100%",
-        borderRadius: "8px",
-        overflow: "hidden",
-        border: "1px solid #e5e7eb"
-      }}
-    />
+    <div>
+      <style>{`
+        .district-label {
+          background: transparent !important;
+          border: none !important;
+          box-shadow: none !important;
+          font-size: 10px !important;
+          font-weight: 700 !important;
+          color: #1e3a8a !important;
+          white-space: nowrap !important;
+        }
+      `}</style>
+
+      <div ref={mapRef} style={{ height: "480px", width: "100%", borderRadius: "8px", zIndex: 0, display: "block" }} />
+
+      {/* District Info Panel */}
+      {districtInfo && (
+        <div className="mt-3 p-4 bg-white border border-blue-200 rounded-xl shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-bold text-blue-900 text-base">{districtInfo.name} District</h3>
+            <button
+              onClick={() => setDistrictInfo(null)}
+              className="text-xs text-slate-400 hover:text-slate-700"
+            >
+              ✕ Close
+            </button>
+          </div>
+          {districtInfo.loading ? (
+            <p className="text-sm text-slate-500 animate-pulse">Loading district data...</p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="bg-blue-50 rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold text-blue-700">{districtInfo.petitions}</p>
+                <p className="text-xs text-blue-600 font-medium mt-1">Total Petitions</p>
+              </div>
+              <div className="bg-indigo-50 rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold text-indigo-700">{districtInfo.works}</p>
+                <p className="text-xs text-indigo-600 font-medium mt-1">Public Works</p>
+              </div>
+              <div className="bg-amber-50 rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold text-amber-700">{districtInfo.pending}</p>
+                <p className="text-xs text-amber-600 font-medium mt-1">Pending</p>
+              </div>
+              <div className="bg-emerald-50 rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold text-emerald-700">{districtInfo.completed}</p>
+                <p className="text-xs text-emerald-600 font-medium mt-1">Completed</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

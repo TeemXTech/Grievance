@@ -11,6 +11,8 @@
     "dev": "npm run prepare:db && npm run seed && next dev",
     "build": "next build",
     "start": "next start",
+    "cron:overdue": "node scripts/run-cron-overdue.cjs",
+    "generate-secrets": "node scripts/generate-secrets.cjs",
     "lint": "next lint",
     "test": "playwright test",
     "test:ui": "playwright test --ui",

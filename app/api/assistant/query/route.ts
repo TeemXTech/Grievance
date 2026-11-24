@@ -1,97 +1,71 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
-import { generateText, generateSQL } from '../../../../lib/ollama'
-import { queryDB } from '../../../../lib/db'
-import { SCHEMA_HINT, isSqlSafe } from '../../../../lib/schema'
-import { saveExcel, savePDF, savePPT, saveChartImage } from '../../../../lib/reports'
+import { getAuthUser, hasRole } from '@/lib/auth-middleware'
+import { prisma } from '@/lib/prisma'
+import { askGemini } from '@/lib/gemini'
 
-const Body = z.object({
-  question: z.string(),
-  format: z.enum(['text','excel','pdf','ppt']).optional(),
-  chart: z.boolean().optional(),
-  compare: z.boolean().optional()
-})
+const READ_ROLES = ['MINISTER', 'PA', 'ADMIN', 'BACK_OFFICER']
 
-function summarizeRows(rows: any[], max = 5) {
-  if (!rows.length) return 'No results.';
-  const keys = Object.keys(rows[0]);
-  const sample = rows.slice(0, max);
-  return `Columns: ${keys.join(', ')}\nSample:\n${sample.map(r=>JSON.stringify(r)).join('\n')}`;
-}
+export async function POST(req: NextRequest) {
+  const user = await getAuthUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!READ_ROLES.includes(user.role))
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-export async function POST(request: NextRequest) {
+  const { question, format = 'text' } = await req.json()
+  if (!question?.trim()) return NextResponse.json({ error: 'question is required' }, { status: 400 })
+
+  // Pull live DB context for the question
+  const [
+    totalPetitions, overduePetitions, pendingPetitions, resolvedPetitions,
+    totalWorks, worksStuck, totalTasks, tasksOverdue,
+    totalFunds, fundsStuck, totalLetters, overdueLetters,
+    recentPetitions,
+  ] = await Promise.all([
+    prisma.petitionRequest.count(),
+    prisma.petitionRequest.count({ where: { isOverdue: true } }),
+    prisma.petitionRequest.count({ where: { status: { in: ['PENDING', 'SUBMITTED_TO_PA', 'UNDER_REVIEW'] } } }),
+    prisma.petitionRequest.count({ where: { status: { in: ['RESOLVED', 'SANCTIONED'] } } }),
+    prisma.publicWork.count(),
+    prisma.publicWork.count({ where: { stage: 'STUCK_DELAYED' } }),
+    prisma.task.count({ where: { status: { notIn: ['COMPLETED', 'CANCELLED'] } } }),
+    prisma.task.count({ where: { isOverdue: true } }),
+    prisma.fundAllocation.count(),
+    prisma.fundAllocation.count({ where: { isStuck: true } }),
+    prisma.letter.count(),
+    prisma.letter.count({ where: { dueDate: { lt: new Date() }, status: { notIn: ['FILED', 'CANCELLED', 'ACKNOWLEDGED'] } } }),
+    prisma.petitionRequest.findMany({
+      take: 8,
+      orderBy: { createdAt: 'desc' },
+      select: { trackingNumber: true, type: true, applicantName: true, mandalName: true, status: true, isOverdue: true, priority: true },
+    }),
+  ])
+
+  const context = `You are the AI assistant for the Minister's office, Telangana Government.
+Answer the question using ONLY the live data below. Be concise, factual, and actionable.
+Format your answer in clear bullet points. If the data doesn't cover the question, say so honestly.
+
+LIVE DATA:
+- Petitions: ${totalPetitions} total | ${pendingPetitions} pending | ${overduePetitions} OVERDUE | ${resolvedPetitions} resolved
+- Public Works: ${totalWorks} total | ${worksStuck} stuck/delayed
+- Tasks: ${totalTasks} open | ${tasksOverdue} overdue
+- Fund Allocations: ${totalFunds} total | ${fundsStuck} stuck
+- Letters: ${totalLetters} total | ${overdueLetters} overdue
+- Recent petitions: ${recentPetitions.map(p => `[${p.trackingNumber}] ${p.applicantName} (${p.mandalName || 'unknown'}) - ${p.type.replace(/_/g, ' ')} - ${p.status}${p.isOverdue ? ' ⚠️OVERDUE' : ''}`).join(' | ')}
+
+Question from ${user.role} (${user.name}): ${question}`
+
   try {
-    const body = await request.json()
-    const { question, format='text', chart=false, compare=false } = Body.parse(body)
-
-    // 1) Turn question into SQL
-    const sql = await generateSQL(question, SCHEMA_HINT)
-
-    if (!isSqlSafe(sql)) {
-      return NextResponse.json({ error: 'Unsafe or invalid SQL generated', sql }, { status: 400 })
-    }
-
-    // 2) Execute SQL
-    const rows = await queryDB(sql)
-
-    // 3) Optional comparisons
-    let compareSummary: any = null
-    if (compare && rows.length && 'district' in rows[0]) {
-      const byDistrict: Record<string, number> = {}
-      rows.forEach((r: any) => {
-        const d = String(r.district ?? 'Unknown')
-        byDistrict[d] = (byDistrict[d] ?? 0) + 1
-      })
-      compareSummary = byDistrict
-    }
-
-    // 4) Create chart if requested
-    let chartPath: string | undefined
-    if (chart && rows.length) {
-      const keys = Object.keys(rows[0])
-      const catKey = ['district','department','status','category'].find(k => keys.includes(k)) || keys[0]
-      const counts: Record<string, number> = {}
-      rows.forEach((r:any) => {
-        const k = String(r[catKey] ?? 'Unknown')
-        counts[k] = (counts[k] ?? 0) + 1
-      })
-      const labels = Object.keys(counts)
-      const values = Object.values(counts)
-      chartPath = await saveChartImage(`chart_${Date.now()}.png`, labels, values, `Counts by ${catKey}`)
-    }
-
-    // 5) Natural language answer from local LLM
-    const nlPrompt = `
-You are a government MIS assistant. Using ONLY the data summary below, write a precise answer for the Minister in concise bullet points. If comparisons exist, include them.
-Question: ${question}
-Data Summary:
-${summarizeRows(rows)}
-${compareSummary ? `Comparisons:\n${JSON.stringify(compareSummary, null, 2)}` : ''}
-
-Keep it short, factual, and actionable.`
-    const answer = await generateText(nlPrompt)
-
-    // 6) File outputs
-    let fileUrl: string | null = null
-    if (format === 'excel') {
-      fileUrl = await saveExcel(`report_${Date.now()}.xlsx`, rows, 'Report')
-    } else if (format === 'pdf') {
-      fileUrl = await savePDF(`report_${Date.now()}.pdf`, 'Report', rows, chartPath)
-    } else if (format === 'ppt') {
-      fileUrl = await savePPT(`report_${Date.now()}.pptx`, 'Report', rows, chartPath)
-    }
-
-    return NextResponse.json({
-      ok: true,
-      sql,
-      rows: rows.slice(0, 50),
-      answer,
-      compareSummary,
-      chartPath,
-      fileUrl
-    })
-  } catch (e: any) {
-    console.error(e)
-    return NextResponse.json({ error: e.message || 'Server error' }, { status: 500 })
+    const answer = await askGemini(context)
+    return NextResponse.json({ ok: true, answer, source: 'gemini' })
+  } catch (err: any) {
+    // Structured fallback — still useful without AI
+    const q = question.toLowerCase()
+    let answer = ''
+    if (q.includes('overdue'))   answer = `${overduePetitions} petitions are overdue. ${tasksOverdue} tasks are past deadline.`
+    else if (q.includes('work')) answer = `${totalWorks} public works total. ${worksStuck} are stuck or delayed.`
+    else if (q.includes('fund')) answer = `${totalFunds} fund allocations. ${fundsStuck} are stuck in bureaucracy.`
+    else if (q.includes('letter')) answer = `${totalLetters} letters. ${overdueLetters} have missed their response deadline.`
+    else answer = `Petitions: ${totalPetitions} (${overduePetitions} overdue, ${pendingPetitions} pending, ${resolvedPetitions} resolved). Works: ${totalWorks} (${worksStuck} stuck). Tasks: ${totalTasks} open (${tasksOverdue} overdue).`
+    return NextResponse.json({ ok: true, answer, source: 'fallback' })
   }
 }

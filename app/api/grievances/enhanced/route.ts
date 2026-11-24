@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import { PrismaClient } from "@prisma/client"
-import { getServerSession } from "next-auth"
-import { authOptions } from "../../auth/[...nextauth]/route"
-
-const prisma = new PrismaClient()
+import { prisma } from "@/lib/prisma"
+import { getAuthUser } from "@/lib/auth-middleware"
 
 async function generateReferenceNumber(type: string): Promise<string> {
   const year = new Date().getFullYear()
@@ -15,8 +12,8 @@ async function generateReferenceNumber(type: string): Promise<string> {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
+    const user = await getAuthUser(request)
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -36,7 +33,7 @@ export async function POST(request: NextRequest) {
         village: data.village,
         issue: data.issue,
         qrCode: qrData,
-        createdBy: session.user.id
+        createdBy: user.id
       }
     })
 

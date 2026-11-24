@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { MapPin, Calendar, User } from "lucide-react"
 
-const categoryColors = {
+const categoryColors: Record<string, string> = {
   'Water': '#3B82F6',
   'Electricity': '#F59E0B', 
   'Roads': '#10B981',
@@ -13,7 +13,7 @@ const categoryColors = {
   'Other': '#6B7280'
 };
 
-const statusColors = {
+const statusColors: Record<string, string> = {
   'Pending': '#F87171',
   'In Progress': '#FBBF24',
   'Resolved': '#34D399'

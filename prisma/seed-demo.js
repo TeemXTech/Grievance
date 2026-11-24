@@ -6,7 +6,10 @@ async function main() {
   console.log('🌱 Starting comprehensive seeding...');
 
   // Hash password for all users
-  const passwordHash = await bcrypt.hash('password123', 10);
+  // In production, change all passwords immediately after first login.
+  // Default seed password is printed below — change it before going live.
+  const SEED_PASSWORD = process.env.SEED_DEFAULT_PASSWORD || 'GovSeed@2026!'
+  const passwordHash = await bcrypt.hash(SEED_PASSWORD, 12);
 
   // Create categories first
   const categories = [
@@ -210,7 +213,8 @@ async function main() {
   console.log('   - 25+ Grievances with status updates');
   console.log('   - 30 Notifications');
   console.log('');
-  console.log('🔑 Login credentials (all users have password: password123):');
+  console.log('🔑 Login credentials (default password: GovSeed@2026! — CHANGE IMMEDIATELY):');
+  console.log('   Set SEED_DEFAULT_PASSWORD in .env to use a custom password.');
   console.log('   Minister: minister@gov.in');
   console.log('   PA: pa@gov.in');
   console.log('   Back Officer: back@gov.in');

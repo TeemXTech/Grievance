@@ -5,19 +5,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { MapPin, Calendar, User, Phone } from "lucide-react"
 
-const categoryColors = {
+const statusColors: Record<string, string> = {
+  'Pending': '#F87171',
+  'In Progress': '#FBBF24',
+  'Resolved': '#34D399'
+};
+
+const categoryColors: Record<string, string> = {
   'Water': '#3B82F6',
   'Electricity': '#F59E0B',
   'Roads': '#10B981',
   'Health': '#EF4444',
   'Infrastructure': '#8B5CF6',
   'Other': '#6B7280'
-};
-
-const statusColors = {
-  'Pending': '#F87171',
-  'In Progress': '#FBBF24',
-  'Resolved': '#34D399'
 };
 
 export default function GrievanceDetailsPage({ params }: { params: { id: string } }) {

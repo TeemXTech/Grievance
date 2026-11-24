@@ -1,32 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
-
-const districtData = {
-  "Karimnagar": { projects: 12, grievances: 8, completed: 5, pending: 15 },
-  "Peddapalli": { projects: 8, grievances: 15, completed: 3, pending: 20 },
-  "Warangal": { projects: 15, grievances: 12, completed: 8, pending: 19 },
-  "Hyderabad": { projects: 25, grievances: 30, completed: 20, pending: 35 },
-  "Nalgonda": { projects: 10, grievances: 18, completed: 6, pending: 22 },
-  "Rangareddy": { projects: 18, grievances: 14, completed: 10, pending: 22 },
-  "Mahbubnagar": { projects: 9, grievances: 11, completed: 4, pending: 16 },
-  "Nizamabad": { projects: 7, grievances: 9, completed: 3, pending: 13 },
-  "Adilabad": { projects: 6, grievances: 7, completed: 2, pending: 11 },
-  "Medak": { projects: 8, grievances: 6, completed: 4, pending: 10 }
-}
+import { prisma } from '@/lib/prisma'
+import { getAuthUser } from '@/lib/auth-middleware'
 
 export async function GET(request: NextRequest) {
+  const user = await getAuthUser(request)
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const { searchParams } = new URL(request.url)
   const districtName = searchParams.get('name')
-  
-  if (!districtName) {
-    return NextResponse.json({ error: 'District name required' }, { status: 400 })
+
+  if (!districtName) return NextResponse.json({ error: 'District name required' }, { status: 400 })
+
+  try {
+    const [projects, grievances, completedProjects, pendingGrievances] = await Promise.all([
+      prisma.governmentProject.count({ where: { district: districtName } }),
+      prisma.grievance.count({ where: { district: districtName } }),
+      prisma.governmentProject.count({ where: { district: districtName, status: 'COMPLETED' } }),
+      prisma.grievance.count({ where: { district: districtName, status: { in: ['PENDING', 'ASSIGNED'] } } }),
+    ])
+
+    return NextResponse.json({ projects, grievances, completed: completedProjects, pending: pendingGrievances })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
-  
-  const data = districtData[districtName] || {
-    projects: Math.floor(Math.random() * 20),
-    grievances: Math.floor(Math.random() * 25),
-    completed: Math.floor(Math.random() * 10),
-    pending: Math.floor(Math.random() * 30)
-  }
-  
-  return NextResponse.json(data)
 }

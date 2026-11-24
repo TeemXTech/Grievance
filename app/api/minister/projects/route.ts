@@ -92,9 +92,15 @@ export async function POST(request: NextRequest) {
 
     if (!title) return NextResponse.json({ success: false, error: 'Work title is required' }, { status: 400 })
 
-    const count = await prisma.publicWork.count()
     const catCode = { ROADS_BRIDGES: 'RD', DRINKING_WATER: 'WTR', EDUCATION_SCHOOLS: 'SCH', HEALTH_CLINICS: 'HLT', COMMUNITY_HALL: 'CH' }[category as string] || 'WRK'
-    const workCode = `WRK-${catCode}-${new Date().getFullYear()}-${String(count + 101).padStart(4, '0')}`
+    const year = new Date().getFullYear()
+    const prefix = `WRK-${catCode}-${year}-`
+    const lastWork = await prisma.publicWork.findFirst({
+      where: { workCode: { startsWith: prefix } },
+      orderBy: { workCode: 'desc' },
+    })
+    const seq = lastWork ? parseInt(lastWork.workCode.split('-').pop()!, 10) + 1 : 1
+    const workCode = `${prefix}${String(seq).padStart(4, '0')}`
 
     const newWork = await prisma.publicWork.create({
       data: {
