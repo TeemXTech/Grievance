@@ -119,6 +119,19 @@ export async function middleware(req: NextRequest) {
 
   const role = token.role as string
 
+  // Force password change if flag is set
+  if (token.mustChangePassword && pathname !== "/auth/change-password" && !pathname.startsWith("/api/users/me") && !pathname.startsWith("/api/auth")) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ success: false, error: "Password change required" }, { status: 403 })
+    }
+    return NextResponse.redirect(new URL("/auth/change-password", req.url))
+  }
+
+  // Allow change-password page for any authenticated user
+  if (pathname === "/auth/change-password") {
+    return addSecurityHeaders(NextResponse.next())
+  }
+
   // API routes: return 401 if not authenticated, 403 if wrong role
   if (pathname.startsWith("/api/")) {
     if (!token) {

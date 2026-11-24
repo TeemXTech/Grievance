@@ -36,6 +36,7 @@ export const authOptions = {
           email: user.email,
           role: user.role,
           phone: user.phone ?? "",
+          mustChangePassword: user.mustChangePassword ?? false,
         }
       },
     }),
@@ -46,6 +47,7 @@ export const authOptions = {
         token.id = user.id
         token.role = user.role
         token.phone = user.phone
+        token.mustChangePassword = user.mustChangePassword
       }
       return token
     },
@@ -54,6 +56,7 @@ export const authOptions = {
         session.user.id = token.id
         session.user.role = token.role
         session.user.phone = token.phone
+        session.user.mustChangePassword = token.mustChangePassword
       }
       return session
     },

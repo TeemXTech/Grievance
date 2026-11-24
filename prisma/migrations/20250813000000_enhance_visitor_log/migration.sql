@@ -1,8 +1,11 @@
--- CreateEnum
-CREATE TYPE "VisitType" AS ENUM ('WALK_IN', 'APPOINTMENT', 'VIP', 'DELEGATION', 'MEDIA', 'OFFICIAL');
+-- CreateEnum (guarded — baseline may have already created these)
+DO $$ BEGIN
+  CREATE TYPE "VisitType" AS ENUM ('WALK_IN', 'APPOINTMENT', 'VIP', 'DELEGATION', 'MEDIA', 'OFFICIAL');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
--- CreateEnum
-CREATE TYPE "VisitorStatus" AS ENUM ('WAITING', 'IN_MEETING', 'COMPLETED', 'CANCELLED', 'NO_SHOW');
+DO $$ BEGIN
+  CREATE TYPE "VisitorStatus" AS ENUM ('WAITING', 'IN_MEETING', 'COMPLETED', 'CANCELLED', 'NO_SHOW');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- Drop old VisitorLog table and recreate with full schema
 -- (safe: no existing UI was using this table)
@@ -38,18 +41,20 @@ CREATE TABLE "VisitorLog" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "VisitorLog_tokenNumber_key" ON "VisitorLog"("tokenNumber");
+CREATE UNIQUE INDEX IF NOT EXISTS "VisitorLog_tokenNumber_key" ON "VisitorLog"("tokenNumber");
 
 -- CreateIndex
-CREATE INDEX "VisitorLog_appointmentDate_idx" ON "VisitorLog"("appointmentDate");
+CREATE INDEX IF NOT EXISTS "VisitorLog_appointmentDate_idx" ON "VisitorLog"("appointmentDate");
 
 -- CreateIndex
-CREATE INDEX "VisitorLog_status_idx" ON "VisitorLog"("status");
+CREATE INDEX IF NOT EXISTS "VisitorLog_status_idx" ON "VisitorLog"("status");
 
 -- AddForeignKey
-ALTER TABLE "VisitorLog" ADD CONSTRAINT "VisitorLog_grievanceId_fkey"
+DO $$ BEGIN ALTER TABLE "VisitorLog" ADD CONSTRAINT "VisitorLog_grievanceId_fkey"
     FOREIGN KEY ("grievanceId") REFERENCES "Grievance"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "VisitorLog" ADD CONSTRAINT "VisitorLog_projectId_fkey"
+DO $$ BEGIN ALTER TABLE "VisitorLog" ADD CONSTRAINT "VisitorLog_projectId_fkey"
     FOREIGN KEY ("projectId") REFERENCES "GovernmentProject"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;

@@ -25,7 +25,7 @@ export async function PATCH(req: NextRequest) {
   if (!valid) return NextResponse.json({ success: false, error: "Current password is incorrect" }, { status: 401 })
 
   const newHash = await bcrypt.hash(newPassword, 12)
-  await prisma.user.update({ where: { id: user.id }, data: { passwordHash: newHash } })
+  await prisma.user.update({ where: { id: user.id }, data: { passwordHash: newHash, mustChangePassword: false } })
 
   await createAuditLog({
     action: "PASSWORD_CHANGE", entityType: "USER", entityId: user.id,

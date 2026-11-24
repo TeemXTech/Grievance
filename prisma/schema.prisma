@@ -16,6 +16,7 @@ model User {
   phone                String?                 @db.VarChar(32)
   status               String?                 @default("active")
   language             String?                 @default("en")
+  mustChangePassword   Boolean                 @default(false)
   createdAt            DateTime                @default(now())
   updatedAt            DateTime                @updatedAt
   auditLogs            AuditLog[]
