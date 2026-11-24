@@ -140,3 +140,6 @@ quick-start.js
 simple-seed.js
 verify-db-passwords.js
 seed-data.sql
+
+# Credential sheets — NEVER commit
+credentials-*.txt
